@@ -188,6 +188,10 @@ export default function DeviceManagementSections({ deviceId }) {
     }
   }
 
+  const hospitalOptions = [...new Set(history.map((item) => item.hospitalName).filter((name) => name && !name.includes('?')))]
+  const validDeploymentHistory = history.filter((item) => item.hospitalName && !item.hospitalName.includes('?'))
+  const hasDeploymentInfo = Boolean(current) || validDeploymentHistory.length > 0
+
   if (isLoading) return <div className={styles.loading}>관리 정보를 불러오는 중입니다.</div>
 
   return (
@@ -203,26 +207,28 @@ export default function DeviceManagementSections({ deviceId }) {
             <button className={styles.primaryButton} type="button" onClick={() => setDeploymentForm({ hospitalName: '', deploymentType: 'HOSPITAL_LOAN', deployedAt: localDateTimeValue(), note: '' })}>병원 배치</button>
           )}
         </div>
-        <dl className={styles.statusGrid}>
-          <div><dt>현재 상태</dt><dd>{current ? deploymentLabel(current.deploymentType) : '사내'}</dd></div>
-          <div><dt>병원</dt><dd>{current?.hospitalName || '—'}</dd></div>
-          <div><dt>배치 유형</dt><dd>{current ? deploymentLabel(current.deploymentType) : '—'}</dd></div>
-          <div><dt>배치일</dt><dd>{formatDate(current?.deployedAt)}</dd></div>
-        </dl>
-        <button className={styles.textButton} type="button" onClick={() => setShowHistory((value) => !value)}>
-          {showHistory ? '배치 이력 닫기' : '배치 이력 보기'} ({history.length})
-        </button>
-        {showHistory && (
-          <div className={styles.history}>
-            {history.length === 0 ? <p>병원 배치 이력이 없습니다.</p> : history.map((item) => (
-              <div key={item.id}>
-                <strong>{item.hospitalName} · {deploymentLabel(item.deploymentType)}</strong>
-                <span>{formatDate(item.deployedAt)} ~ {item.returnedAt ? formatDate(item.returnedAt) : '배치 중'}</span>
-                {item.note && <p>{item.note}</p>}
-              </div>
-            ))}
-          </div>
-        )}
+        {hasDeploymentInfo && <>
+          <dl className={styles.statusGrid}>
+            <div><dt>현재 상태</dt><dd>{current ? deploymentLabel(current.deploymentType) : '사내'}</dd></div>
+            <div><dt>병원</dt><dd>{current?.hospitalName || '—'}</dd></div>
+            <div><dt>배치 유형</dt><dd>{current ? deploymentLabel(current.deploymentType) : '—'}</dd></div>
+            <div><dt>배치일</dt><dd>{formatDate(current?.deployedAt)}</dd></div>
+          </dl>
+          <button className={styles.textButton} type="button" onClick={() => setShowHistory((value) => !value)}>
+            {showHistory ? '배치 이력 닫기' : '배치 이력 보기'} ({validDeploymentHistory.length})
+          </button>
+          {showHistory && (
+            <div className={styles.history}>
+              {validDeploymentHistory.map((item) => (
+                <div key={item.id}>
+                  <strong>{item.hospitalName} · {deploymentLabel(item.deploymentType)}</strong>
+                  <span>{formatDate(item.deployedAt)} ~ {item.returnedAt ? formatDate(item.returnedAt) : '배치 중'}</span>
+                  {item.note && <p>{item.note}</p>}
+                </div>
+              ))}
+            </div>
+          )}
+        </>}
       </section>
 
       <section className={styles.section}>
@@ -236,7 +242,7 @@ export default function DeviceManagementSections({ deviceId }) {
           <div><dt>설치 버전</dt><dd>{currentAssignment.installedVersion || '—'}</dd></div>
           <div><dt>최신 버전</dt><dd>{currentAssignment.latestVersion || '—'} · {statusText[currentAssignment.versionStatus]}</dd></div>
         </dl> : <div className={styles.empty}>{availableProjects.length === 0 ? '먼저 Projects 화면에서 프로젝트를 등록하세요.' : '현재 할당된 프로젝트가 없습니다.'}</div>}
-        {assignmentHistory.length > 0 && <div className={styles.history}>{assignmentHistory.map((assignment) => <div key={assignment.id}><strong>{assignment.project.name}</strong><span>{formatDate(assignment.assignedAt)} ~ {assignment.endedAt ? formatDate(assignment.endedAt) : '할당 중'}</span>{assignment.note && <p>{assignment.note}</p>}</div>)}</div>}
+        {assignmentHistory.length > 0 && <div className={styles.history}>{assignmentHistory.filter((assignment, index, history) => index === history.findIndex((item) => item.project.id === assignment.project.id)).map((assignment) => <div key={assignment.id}><strong>{assignment.project.name}</strong><span>{formatDate(assignment.assignedAt)} ~ {assignment.endedAt ? formatDate(assignment.endedAt) : '할당 중'}</span>{assignment.note && !assignment.note.includes('?') && <p>{assignment.note}</p>}</div>)}</div>}
       </section>
 
       <section className={styles.section}>
@@ -271,7 +277,7 @@ export default function DeviceManagementSections({ deviceId }) {
           <form className={styles.modal} onSubmit={submitDeployment}>
             <div className={styles.modalHeader}><h3>병원 배치</h3><p>배치 유형과 병원 정보를 입력하세요.</p></div>
             <div className={styles.formBody}>
-              <label>병원명 *<input required value={deploymentForm.hospitalName} onChange={(event) => setDeploymentForm({ ...deploymentForm, hospitalName: event.target.value })} /></label>
+              <label>병원 선택 *<input required list="device-hospital-options" placeholder="병원명을 선택하거나 입력하세요" value={deploymentForm.hospitalName} onChange={(event) => setDeploymentForm({ ...deploymentForm, hospitalName: event.target.value })} />{hospitalOptions.length > 0 && <datalist id="device-hospital-options">{hospitalOptions.map((name) => <option key={name} value={name} />)}</datalist>}</label>
               <label>배치 유형 *<select value={deploymentForm.deploymentType} onChange={(event) => setDeploymentForm({ ...deploymentForm, deploymentType: event.target.value })}><option value="HOSPITAL_LOAN">병원 대여</option><option value="HOSPITAL_DEDICATED">병원 전용</option></select></label>
               <label>배치일 *<input required type="datetime-local" value={deploymentForm.deployedAt} onChange={(event) => setDeploymentForm({ ...deploymentForm, deployedAt: event.target.value })} /></label>
               <label>메모<textarea rows="3" value={deploymentForm.note} onChange={(event) => setDeploymentForm({ ...deploymentForm, note: event.target.value })} /></label>
