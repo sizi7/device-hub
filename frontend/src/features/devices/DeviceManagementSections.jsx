@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { deviceApi, getApiErrorMessage } from '../../api/deviceApi.js'
+import { projectApi } from '../../api/projectApi.js'
 import styles from './DeviceManagementSections.module.css'
 
 const emptyProject = {
@@ -34,6 +35,10 @@ export default function DeviceManagementSections({ deviceId }) {
   const [current, setCurrent] = useState(null)
   const [history, setHistory] = useState([])
   const [projects, setProjects] = useState([])
+  const [currentAssignment, setCurrentAssignment] = useState(null)
+  const [assignmentHistory, setAssignmentHistory] = useState([])
+  const [availableProjects, setAvailableProjects] = useState([])
+  const [assignmentForm, setAssignmentForm] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
   const [showHistory, setShowHistory] = useState(false)
@@ -45,14 +50,20 @@ export default function DeviceManagementSections({ deviceId }) {
     setIsLoading(true)
     setError('')
     try {
-      const [currentResult, historyResult, projectResult] = await Promise.all([
+      const [currentResult, historyResult, projectResult, currentAssignmentResult, assignmentResult, availableProjectResult] = await Promise.all([
         deviceApi.getCurrentDeployment(deviceId),
         deviceApi.getDeployments(deviceId),
         deviceApi.getProjects(deviceId),
+        projectApi.getCurrentAssignment(deviceId),
+        projectApi.getAssignments(deviceId),
+        projectApi.getAll(),
       ])
       setCurrent(currentResult.deployment)
       setHistory(historyResult)
       setProjects(projectResult)
+      setCurrentAssignment(currentAssignmentResult.assignment)
+      setAssignmentHistory(assignmentResult)
+      setAvailableProjects(availableProjectResult)
     } catch (requestError) {
       setError(getApiErrorMessage(requestError))
     } finally {
@@ -146,6 +157,37 @@ export default function DeviceManagementSections({ deviceId }) {
     }
   }
 
+  const assignProject = async (event) => {
+    event.preventDefault()
+    setIsSaving(true)
+    setError('')
+    try {
+      await projectApi.assignDevice(deviceId, {
+        projectId: Number(assignmentForm.projectId),
+        assignedAt: assignmentForm.assignedAt + ':00',
+        note: assignmentForm.note.trim() || null,
+      })
+      setAssignmentForm(null)
+      await loadManagementData()
+    } catch (requestError) {
+      setError(requestError.response?.status === 409 ? '이미 활성 프로젝트가 할당되어 있습니다.' : getApiErrorMessage(requestError))
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const endAssignment = async () => {
+    setIsSaving(true)
+    try {
+      await projectApi.endAssignment(deviceId)
+      await loadManagementData()
+    } catch (requestError) {
+      setError(getApiErrorMessage(requestError))
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
   if (isLoading) return <div className={styles.loading}>관리 정보를 불러오는 중입니다.</div>
 
   return (
@@ -181,6 +223,20 @@ export default function DeviceManagementSections({ deviceId }) {
             ))}
           </div>
         )}
+      </section>
+
+      <section className={styles.section}>
+        <div className={styles.sectionHeader}>
+          <div><h3>현재 프로젝트</h3><p>Device가 현재 사용 중인 프로젝트와 과거 이력을 관리합니다.</p></div>
+          {currentAssignment ? <button className={styles.secondaryButton} type="button" disabled={isSaving} onClick={endAssignment}>할당 종료</button> : <button className={styles.primaryButton} type="button" disabled={availableProjects.length === 0} onClick={() => setAssignmentForm({ projectId: availableProjects[0]?.id || '', assignedAt: localDateTimeValue(), note: '' })}>프로젝트 할당</button>}
+        </div>
+        {currentAssignment ? <dl className={styles.statusGrid}>
+          <div><dt>프로젝트</dt><dd>{currentAssignment.project.name}</dd></div>
+          <div><dt>할당일</dt><dd>{formatDate(currentAssignment.assignedAt)}</dd></div>
+          <div><dt>설치 버전</dt><dd>{currentAssignment.installedVersion || '—'}</dd></div>
+          <div><dt>최신 버전</dt><dd>{currentAssignment.latestVersion || '—'} · {statusText[currentAssignment.versionStatus]}</dd></div>
+        </dl> : <div className={styles.empty}>{availableProjects.length === 0 ? '먼저 Projects 화면에서 프로젝트를 등록하세요.' : '현재 할당된 프로젝트가 없습니다.'}</div>}
+        {assignmentHistory.length > 0 && <div className={styles.history}>{assignmentHistory.map((assignment) => <div key={assignment.id}><strong>{assignment.project.name}</strong><span>{formatDate(assignment.assignedAt)} ~ {assignment.endedAt ? formatDate(assignment.endedAt) : '할당 중'}</span>{assignment.note && <p>{assignment.note}</p>}</div>)}</div>}
       </section>
 
       <section className={styles.section}>
@@ -237,6 +293,21 @@ export default function DeviceManagementSections({ deviceId }) {
               <label>마지막 업데이트<input type="datetime-local" value={projectForm.lastUpdatedAt} onChange={(event) => setProjectForm({ ...projectForm, lastUpdatedAt: event.target.value })} /></label>
             </div>
             <div className={styles.modalActions}><button className={styles.secondaryButton} type="button" onClick={() => setProjectForm(null)}>취소</button><button className={styles.primaryButton} type="submit" disabled={isSaving}>{isSaving ? '저장 중...' : '저장'}</button></div>
+          </form>
+        </div>
+      )}
+
+      {assignmentForm && (
+        <div className={styles.modalLayer}>
+          <div className={styles.modalBackdrop} />
+          <form className={styles.modal} onSubmit={assignProject}>
+            <div className={styles.modalHeader}><h3>프로젝트 할당</h3><p>현재 Device가 사용할 프로젝트를 선택하세요.</p></div>
+            <div className={styles.formBody}>
+              <label>프로젝트 *<select required value={assignmentForm.projectId} onChange={(event) => setAssignmentForm({ ...assignmentForm, projectId: event.target.value })}>{availableProjects.map((project) => <option key={project.id} value={project.id}>{project.name} ({project.code})</option>)}</select></label>
+              <label>할당일 *<input required type="datetime-local" value={assignmentForm.assignedAt} onChange={(event) => setAssignmentForm({ ...assignmentForm, assignedAt: event.target.value })} /></label>
+              <label>메모<textarea rows="3" value={assignmentForm.note} onChange={(event) => setAssignmentForm({ ...assignmentForm, note: event.target.value })} /></label>
+            </div>
+            <div className={styles.modalActions}><button className={styles.secondaryButton} type="button" onClick={() => setAssignmentForm(null)}>취소</button><button className={styles.primaryButton} type="submit" disabled={isSaving}>할당</button></div>
           </form>
         </div>
       )}

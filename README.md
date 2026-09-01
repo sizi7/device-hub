@@ -414,3 +414,60 @@ versionStatus는 버전 크기를 문자열로 비교하지 않습니다. 두 �
 - DB unique index는 동시에 들어오는 중복 배치 요청도 최종적으로 방어합니다.
 - DeviceProject는 Device와 다대일 관계이므로 한 기기에 여러 앱 정보를 독립적으로 저장할 수 있습니다.
 - 패키지명을 미리 저장하면 다음 단계에서 ADB 기반 설치 버전 조회로 확장하기 쉽습니다.
+
+## 독립 Project 관리 시스템
+
+Project는 Device와 별도의 마스터 Entity로 프로젝트명, 식별 코드, 설명, 관리자와 진행 상태를 관리합니다. 상태는 PLANNING, DEVELOPMENT, OPERATING, SUSPENDED, COMPLETED로 구분하며 code는 중복될 수 없습니다.
+
+Device 자체에 현재 프로젝트 문자열만 저장하면 과거 참여 이력을 잃기 때문에 DeviceProjectAssignment를 사용합니다. assignedAt은 할당 시작, endedAt은 종료 시각이며 endedAt이 null인 행이 현재 할당입니다. 한 Device에는 활성 할당이 하나만 존재하도록 서비스 검사와 PostgreSQL partial unique index를 함께 적용합니다. 프로젝트 상세에서는 현재 할당된 Device 목록을 역방향으로 조회할 수 있습니다.
+
+기존 DeviceProject는 삭제하지 않았습니다. 이 구조는 기기별 앱과 installedVersion, latestVersion을 관리하는 기존 역할을 유지합니다. 현재 DB와 Entity에는 Device.project 문자열 필드가 존재하지 않아 자동 migration 대상이 없습니다. Project와 이름이 같은 기존 DeviceProject가 있으면 설치 버전 비교에 활용하지만, 이름이 일치하지 않는 데이터를 임의로 연결하지 않습니다.
+
+### 프로젝트 네트워크
+
+ProjectNetwork는 한 프로젝트의 환경별 접속 주소를 관리합니다.
+
+- ISO: ISO 검증 환경
+- MFDS: 인허가·규제 대응 환경
+- DEVELOPMENT: 개발 및 테스트 환경
+- BUSINESS: 사업부 운영 환경
+
+현재는 환경 이름, API URL, Socket URL과 설명만 저장합니다. Password, API Key, Secret, Token은 평문 DB 컬럼으로 추가하지 않습니다. 민감정보가 필요해지면 암호화, 접근 제어, 감사 로그와 외부 Secret Manager를 포함한 별도 보안 설계가 필요합니다.
+
+### 프로젝트 APK
+
+ProjectApk는 version, Android versionCode, 환경, 원본 파일명, 저장 경로, 릴리즈 노트와 업로드 시각을 관리합니다. APK binary는 PostgreSQL에 저장하지 않고 기본적으로 storage/apks/{projectCode}/{version} 아래에 UUID 파일명으로 저장합니다. 저장 위치는 APK_STORAGE_PATH 환경변수로 변경할 수 있습니다.
+
+- .apk 확장자만 허용합니다.
+- 파일당 최대 크기는 200MB입니다.
+- UUID 저장 파일명으로 충돌을 방지합니다.
+- 다운로드 시에는 원본 파일명을 제공합니다.
+- 환경별 가장 최근 uploadedAt을 최신 APK로 조회합니다.
+- APK 삭제 시 DB 메타데이터와 로컬 파일을 함께 삭제합니다.
+
+DeviceProjectAssignment 응답은 프로젝트명과 일치하는 기존 DeviceProject의 installedVersion과 프로젝트의 최신 업로드 APK 버전을 비교합니다. 둘이 같으면 LATEST, 다르면 UPDATE_REQUIRED, 한쪽이 없으면 UNKNOWN입니다. semantic version 크기 비교는 하지 않습니다.
+
+### Project API
+
+- POST /api/projects
+- GET /api/projects
+- GET /api/projects/{id}
+- PUT /api/projects/{id}
+- DELETE /api/projects/{id}
+- POST /api/devices/{deviceId}/project-assignments
+- GET /api/devices/{deviceId}/project-assignments
+- GET /api/devices/{deviceId}/project-assignments/current
+- POST /api/devices/{deviceId}/project-assignments/end
+- GET /api/projects/{projectId}/devices
+- /api/projects/{projectId}/networks 하위 CRUD
+- /api/projects/{projectId}/apks 하위 업로드, 조회, 다운로드, 최신 조회와 삭제
+
+관리자 웹의 Projects 메뉴에서는 프로젝트 목록과 개요, 연결 기기, 네트워크, APK 탭을 제공합니다. Device 상세의 현재 프로젝트 영역에서는 프로젝트 할당·종료, 설치 버전, 최신 APK 버전과 과거 이력을 확인할 수 있습니다.
+
+### Project 학습 내용
+
+- Project와 Device를 독립 Entity로 두면 프로젝트 정보 중복 없이 여러 기기와 연결할 수 있습니다.
+- 현재 관계와 과거 이력이 모두 필요하면 중간 이력 Entity에 시작·종료 시각을 저장합니다.
+- multipart/form-data는 파일과 버전 메타데이터를 한 요청으로 전달합니다.
+- 파일 binary와 검색 가능한 메타데이터를 분리하면 DB 크기와 다운로드 처리를 단순하게 유지할 수 있습니다.
+- Swagger UI에서 Projects, Project Networks, Project APKs, Device Project Assignments 태그별 요청 필드, 상태 코드와 multipart 파라미터 설명을 확인할 수 있습니다.

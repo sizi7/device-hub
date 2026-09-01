@@ -2,6 +2,7 @@ import { useState } from 'react'
 import AppShell from './components/layout/AppShell.jsx'
 import DevicesPage from './features/devices/DevicesPage.jsx'
 import PlaceholderPage from './components/common/PlaceholderPage.jsx'
+import ProjectsPage from './features/projects/ProjectsPage.jsx'
 
 const pageDescriptions = {
   Dashboard: '서비스 현황을 한눈에 확인하는 공간입니다.',
@@ -17,6 +18,8 @@ export default function App() {
     <AppShell activePage={activePage} onNavigate={setActivePage}>
       {activePage === 'Devices' ? (
         <DevicesPage />
+      ) : activePage === 'Projects' ? (
+        <ProjectsPage />
       ) : (
         <PlaceholderPage title={activePage} description={pageDescriptions[activePage]} />
       )}

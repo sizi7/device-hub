@@ -1,0 +1,146 @@
+import { useCallback, useEffect, useState } from 'react'
+import { projectApi } from '../../api/projectApi.js'
+import { getApiErrorMessage } from '../../api/deviceApi.js'
+import styles from './ProjectsPage.module.css'
+
+const emptyProject = { name: '', code: '', description: '', manager: '', status: 'PLANNING' }
+const emptyNetwork = { environmentType: 'ISO', name: '', apiUrl: '', socketUrl: '', description: '' }
+
+function formatDate(value) {
+  if (!value) return '—'
+  return new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium' }).format(new Date(value))
+}
+
+const statusLabel = {
+  PLANNING: '기획',
+  DEVELOPMENT: '개발',
+  OPERATING: '운영',
+  SUSPENDED: '중단',
+  COMPLETED: '완료',
+}
+
+export default function ProjectsPage() {
+  const [projects, setProjects] = useState([])
+  const [selectedId, setSelectedId] = useState(null)
+  const [form, setForm] = useState(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  const loadProjects = useCallback(async () => {
+    setIsLoading(true)
+    setError('')
+    try { setProjects(await projectApi.getAll()) } catch (requestError) { setError(getApiErrorMessage(requestError)) } finally { setIsLoading(false) }
+  }, [])
+
+  useEffect(() => { loadProjects() }, [loadProjects])
+
+  const saveProject = async (event) => {
+    event.preventDefault()
+    try {
+      if (form.id) await projectApi.update(form.id, form)
+      else await projectApi.create(form)
+      setForm(null)
+      await loadProjects()
+    } catch (requestError) {
+      setError(requestError.response?.status === 409 ? '이미 사용 중인 프로젝트 코드입니다.' : getApiErrorMessage(requestError))
+    }
+  }
+
+  if (selectedId) return <ProjectDetail projectId={selectedId} onBack={() => { setSelectedId(null); loadProjects() }} />
+
+  return (
+    <section>
+      <div className={styles.pageHeading}>
+        <div><p className={styles.eyebrow}>Project management</p><h1>Projects</h1><p>프로젝트, 연결 기기, 네트워크와 APK 배포 정보를 관리합니다.</p></div>
+        <button className={styles.primaryButton} type="button" onClick={() => setForm({ ...emptyProject })}>프로젝트 등록</button>
+      </div>
+      {error && <div className={styles.error}>{error}</div>}
+      <div className={styles.panel}>
+        {isLoading ? <div className={styles.state}>프로젝트를 불러오는 중입니다.</div> : projects.length === 0 ? <div className={styles.state}>등록된 프로젝트가 없습니다.</div> : (
+          <div className={styles.tableScroll}><table className={styles.table}>
+            <thead><tr><th>프로젝트명</th><th>코드</th><th>상태</th><th>관리자</th><th>연결 기기</th><th>최신 APK</th><th>수정일</th><th>작업</th></tr></thead>
+            <tbody>{projects.map((project) => <tr key={project.id}>
+              <td><button className={styles.nameButton} type="button" onClick={() => setSelectedId(project.id)}>{project.name}</button></td>
+              <td>{project.code}</td><td><span className={styles.badge}>{statusLabel[project.status]}</span></td>
+              <td>{project.manager || '—'}</td><td>{project.connectedDeviceCount}대</td>
+              <td>{project.latestApk ? project.latestApk.version + ' · ' + project.latestApk.environmentType : '—'}</td>
+              <td>{formatDate(project.updatedAt)}</td>
+              <td><button className={styles.textButton} type="button" onClick={() => setForm({ ...project })}>수정</button></td>
+            </tr>)}</tbody>
+          </table></div>
+        )}
+      </div>
+      {form && <ProjectForm form={form} setForm={setForm} onSubmit={saveProject} onClose={() => setForm(null)} />}
+    </section>
+  )
+}
+
+function ProjectForm({ form, setForm, onSubmit, onClose }) {
+  return <div className={styles.modalLayer}><div className={styles.backdrop} /><form className={styles.modal} onSubmit={onSubmit}>
+    <div className={styles.modalHeader}><h2>{form.id ? '프로젝트 수정' : '프로젝트 등록'}</h2></div>
+    <div className={styles.formBody}>
+      <label>프로젝트명 *<input required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /></label>
+      <label>코드 *<input required pattern="[A-Z0-9_]+" value={form.code} onChange={(event) => setForm({ ...form, code: event.target.value.toUpperCase() })} placeholder="THYNC_PHYSICIAN" /></label>
+      <label>상태<select value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value })}>{Object.entries(statusLabel).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+      <label>관리자<input value={form.manager || ''} onChange={(event) => setForm({ ...form, manager: event.target.value })} /></label>
+      <label>설명<textarea rows="4" value={form.description || ''} onChange={(event) => setForm({ ...form, description: event.target.value })} /></label>
+    </div>
+    <div className={styles.modalActions}><button className={styles.secondaryButton} type="button" onClick={onClose}>취소</button><button className={styles.primaryButton} type="submit">저장</button></div>
+  </form></div>
+}
+
+function ProjectDetail({ projectId, onBack }) {
+  const [project, setProject] = useState(null)
+  const [devices, setDevices] = useState([])
+  const [networks, setNetworks] = useState([])
+  const [apks, setApks] = useState([])
+  const [tab, setTab] = useState('overview')
+  const [networkForm, setNetworkForm] = useState(null)
+  const [apkForm, setApkForm] = useState({ file: null, version: '', versionCode: '', environmentType: 'ISO', releaseNote: '' })
+  const [error, setError] = useState('')
+
+  const load = useCallback(async () => {
+    setError('')
+    try {
+      const [projectResult, deviceResult, networkResult, apkResult] = await Promise.all([projectApi.getById(projectId), projectApi.getDevices(projectId), projectApi.getNetworks(projectId), projectApi.getApks(projectId)])
+      setProject(projectResult); setDevices(deviceResult); setNetworks(networkResult); setApks(apkResult)
+    } catch (requestError) { setError(getApiErrorMessage(requestError)) }
+  }, [projectId])
+  useEffect(() => { load() }, [load])
+
+  const saveNetwork = async (event) => {
+    event.preventDefault()
+    if (networkForm.id) await projectApi.updateNetwork(projectId, networkForm.id, networkForm)
+    else await projectApi.createNetwork(projectId, networkForm)
+    setNetworkForm(null); await load()
+  }
+  const uploadApk = async (event) => {
+    event.preventDefault()
+    const data = new FormData()
+    data.append('file', apkForm.file); data.append('version', apkForm.version); data.append('versionCode', apkForm.versionCode); data.append('environmentType', apkForm.environmentType); data.append('releaseNote', apkForm.releaseNote)
+    try { await projectApi.uploadApk(projectId, data); setApkForm({ file: null, version: '', versionCode: '', environmentType: 'ISO', releaseNote: '' }); event.target.reset(); await load() } catch (requestError) { setError(getApiErrorMessage(requestError)) }
+  }
+  if (!project) return <div className={styles.state}>{error || '프로젝트를 불러오는 중입니다.'}</div>
+
+  return <section>
+    <button className={styles.backButton} type="button" onClick={onBack}>← 프로젝트 목록</button>
+    <div className={styles.detailHeading}><div><p>{project.code}</p><h1>{project.name}</h1><span>{statusLabel[project.status]}</span></div></div>
+    {error && <div className={styles.error}>{error}</div>}
+    <div className={styles.tabs}>{[['overview','개요'],['devices','기기'],['networks','네트워크'],['apks','APK']].map(([value,label]) => <button key={value} className={tab === value ? styles.activeTab : ''} type="button" onClick={() => setTab(value)}>{label}</button>)}</div>
+    <div className={styles.detailPanel}>
+      {tab === 'overview' && <dl className={styles.overview}><div><dt>프로젝트명</dt><dd>{project.name}</dd></div><div><dt>코드</dt><dd>{project.code}</dd></div><div><dt>상태</dt><dd>{statusLabel[project.status]}</dd></div><div><dt>관리자</dt><dd>{project.manager || '—'}</dd></div><div className={styles.full}><dt>설명</dt><dd>{project.description || '—'}</dd></div></dl>}
+      {tab === 'devices' && <DataTable headers={['기기명','모델','현재 위치','설치 버전','최신 버전','상태']} rows={devices.map((device) => [device.name, device.modelName, device.currentLocation, device.installedVersion || '—', device.latestVersion || '—', device.versionStatus])} empty="연결된 기기가 없습니다." />}
+      {tab === 'networks' && <><div className={styles.sectionAction}><h2>네트워크 환경</h2><button className={styles.primaryButton} onClick={() => setNetworkForm({ ...emptyNetwork })}>네트워크 추가</button></div><DataTable headers={['환경','이름','API URL','Socket URL','작업']} rows={networks.map((network) => [network.environmentType, network.name, network.apiUrl || '—', network.socketUrl || '—', <span className={styles.rowActions}><button onClick={() => setNetworkForm({ ...network })}>수정</button><button onClick={async () => { await projectApi.removeNetwork(projectId, network.id); load() }}>삭제</button></span>])} empty="등록된 네트워크가 없습니다." />{networkForm && <NetworkForm form={networkForm} setForm={setNetworkForm} onSubmit={saveNetwork} />}</>}
+      {tab === 'apks' && <><div className={styles.sectionAction}><h2>APK</h2></div><form className={styles.uploadForm} onSubmit={uploadApk}><input required type="file" accept=".apk" onChange={(event) => setApkForm({ ...apkForm, file: event.target.files[0] })} /><input required placeholder="버전 (1.5.2)" value={apkForm.version} onChange={(event) => setApkForm({ ...apkForm, version: event.target.value })} /><input required min="1" type="number" placeholder="versionCode" value={apkForm.versionCode} onChange={(event) => setApkForm({ ...apkForm, versionCode: event.target.value })} /><select value={apkForm.environmentType} onChange={(event) => setApkForm({ ...apkForm, environmentType: event.target.value })}>{['ISO','MFDS','DEVELOPMENT','BUSINESS'].map((value) => <option key={value}>{value}</option>)}</select><input placeholder="릴리즈 노트" value={apkForm.releaseNote} onChange={(event) => setApkForm({ ...apkForm, releaseNote: event.target.value })} /><button className={styles.primaryButton}>APK 업로드</button></form><DataTable headers={['버전','versionCode','환경','업로드일','파일명','작업']} rows={apks.map((apk) => [apk.version, apk.versionCode, apk.environmentType, formatDate(apk.uploadedAt), apk.fileName, <span className={styles.rowActions}><button onClick={() => projectApi.downloadApk(projectId, apk)}>다운로드</button><button onClick={async () => { await projectApi.removeApk(projectId, apk.id); load() }}>삭제</button></span>])} empty="업로드된 APK가 없습니다." /></>}
+    </div>
+  </section>
+}
+
+function DataTable({ headers, rows, empty }) {
+  if (rows.length === 0) return <div className={styles.state}>{empty}</div>
+  return <div className={styles.tableScroll}><table className={styles.table}><thead><tr>{headers.map((header) => <th key={header}>{header}</th>)}</tr></thead><tbody>{rows.map((row, index) => <tr key={index}>{row.map((cell, cellIndex) => <td key={cellIndex}>{cell}</td>)}</tr>)}</tbody></table></div>
+}
+
+function NetworkForm({ form, setForm, onSubmit }) {
+  return <form className={styles.inlineForm} onSubmit={onSubmit}><select value={form.environmentType} onChange={(event) => setForm({ ...form, environmentType: event.target.value })}>{['ISO','MFDS','DEVELOPMENT','BUSINESS'].map((value) => <option key={value}>{value}</option>)}</select><input required placeholder="설정 이름" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /><input placeholder="API URL" value={form.apiUrl || ''} onChange={(event) => setForm({ ...form, apiUrl: event.target.value })} /><input placeholder="Socket URL" value={form.socketUrl || ''} onChange={(event) => setForm({ ...form, socketUrl: event.target.value })} /><input placeholder="설명" value={form.description || ''} onChange={(event) => setForm({ ...form, description: event.target.value })} /><button className={styles.primaryButton}>저장</button><button className={styles.secondaryButton} type="button" onClick={() => setForm(null)}>취소</button></form>
+}

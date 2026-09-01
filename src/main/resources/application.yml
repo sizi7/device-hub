@@ -12,7 +12,13 @@ spring:
     hibernate:
       ddl-auto: none
     open-in-view: false
+  servlet:
+    multipart:
+      max-file-size: 200MB
+      max-request-size: 205MB
 
 devicehub:
   adb:
     path: ${ADB_PATH:}
+  storage:
+    apk-path: ${APK_STORAGE_PATH:storage/apks}

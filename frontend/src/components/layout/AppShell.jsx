@@ -3,7 +3,8 @@ import styles from './AppShell.module.css'
 
 const navigation = [
   { label: 'Dashboard', icon: 'dashboard' },
-  { label: 'Devices', icon: 'devices' },
+  { label: 'Devices', icon: 'devices', ready: true },
+  { label: 'Projects', icon: 'apps', ready: true },
   { label: 'Apps', icon: 'apps' },
   { label: 'Users', icon: 'users' },
   { label: 'Settings', icon: 'settings' },
@@ -27,7 +28,7 @@ export default function AppShell({ activePage, onNavigate, children }) {
             >
               <Icon name={item.icon} size={19} />
               <span>{item.label}</span>
-              {item.label !== 'Devices' && <span className={styles.soon}>준비 중</span>}
+              {!item.ready && <span className={styles.soon}>준비 중</span>}
             </button>
           ))}
         </nav>
