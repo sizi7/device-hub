@@ -4,7 +4,7 @@
 
 React, Vite, JavaScript, axios, CSS Modules로 DeviceHub 관리자 웹을 구성했다. 별도 UI 라이브러리와 전역 상태 관리 도구는 사용하지 않고 `useState`, `useEffect`를 사용한다.
 
-현재 실제 기능이 연결된 메뉴는 `Devices`이며 Dashboard, Apps, Users, Settings는 향후 기능을 위한 화면 구조만 제공한다.
+현재 실제 기능이 연결된 메뉴는 `Devices`와 `Projects`이며 Dashboard, Apps, Users, Settings는 향후 기능을 위한 화면 구조만 제공한다.
 
 ### 관리자 웹 실행
 
@@ -207,11 +207,25 @@ Remove-Item Env:PGPASSWORD
 
 - Phase 1 완료: Spring Boot 프로젝트 구성 및 Health API
 - Phase 2 완료: PostgreSQL 연결, Spring Data JPA 및 JDBC Driver 구성
-- 다음 단계(미진행): Phase 3 Device CRUD
+- Phase 3 완료: Device Entity와 Device CRUD API
+- Phase 3.5 완료: Swagger/OpenAPI(springdoc) 문서화
+- ADB 연결 기기 자동 감지 및 등록 완료
+- 병원 배치(DeviceDeployment) 관리 완료
+- DeviceProject 기반 기기별 앱 설치 버전 관리 완료
+- 독립 Project 관리 완료: Project CRUD, DeviceProjectAssignment 할당 이력, 프로젝트 네트워크, 프로젝트 APK 업로드·다운로드
+- 프로젝트 키스토어 완료: 키스토어 업로드·검증·다운로드·삭제와 AES-GCM 비밀번호 암호화 저장, 복호화 조회
+- React 관리자 웹 완료: Devices, Projects 메뉴에 실제 API 연동. Dashboard, Apps, Users, Settings는 화면 구조만 제공
 
-현재는 Spring Web, Spring Data JPA, PostgreSQL JDBC Driver를 사용합니다. Security, JWT, Swagger/OpenAPI, Docker는 아직 추가하지 않았습니다.
+다음 단계(미진행):
+
+- 인증·권한과 감사 로그. 현재는 API에 접근할 수 있는 사람이면 누구나 키스토어 비밀번호를 조회할 수 있습니다.
+- 키스토어와 Project API의 통합 테스트. 현재 테스트는 `SecretEncryptorTest`뿐입니다.
+
+현재는 Spring Web, Spring Data JPA, Spring Validation, springdoc-openapi, Jackson Kotlin Module, PostgreSQL JDBC Driver를 사용합니다. Security, JWT, Docker는 아직 추가하지 않았습니다.
 
 ## 기술 환경
+
+백엔드
 
 - Java 21
 - Kotlin 1.9.25
@@ -219,7 +233,17 @@ Remove-Item Env:PGPASSWORD
 - Gradle Kotlin DSL
 - Spring Web
 - Spring Data JPA
+- Spring Validation
+- Jackson Kotlin Module
+- springdoc-openapi 2.8.9 (Swagger UI)
 - PostgreSQL 17.11
+
+프론트엔드
+
+- React 19.1
+- Vite 7.1
+- JavaScript, CSS Modules
+- axios 1.11
 
 ## 실행 방법
 
