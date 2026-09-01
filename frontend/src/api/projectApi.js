@@ -31,6 +31,21 @@ export const projectApi = {
     link.click()
     URL.revokeObjectURL(url)
   },
+  getKeystores: (id) => api.get('/projects/' + id + '/keystores').then((response) => response.data),
+  uploadKeystore: (id, formData) => api.post('/projects/' + id + '/keystores', formData).then((response) => response.data),
+  updateKeystore: (id, keystoreId, payload) => api.put('/projects/' + id + '/keystores/' + keystoreId, payload).then((response) => response.data),
+  updateKeystorePassword: (id, keystoreId, payload) => api.put('/projects/' + id + '/keystores/' + keystoreId + '/password', payload).then((response) => response.data),
+  revealKeystorePassword: (id, keystoreId) => api.post('/projects/' + id + '/keystores/' + keystoreId + '/reveal').then((response) => response.data),
+  removeKeystore: (id, keystoreId) => api.delete('/projects/' + id + '/keystores/' + keystoreId),
+  downloadKeystore: async (id, keystore) => {
+    const response = await api.get('/projects/' + id + '/keystores/' + keystore.id + '/download', { responseType: 'blob' })
+    const url = URL.createObjectURL(response.data)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = keystore.fileName
+    link.click()
+    URL.revokeObjectURL(url)
+  },
   getAssignments: (deviceId) => api.get('/devices/' + deviceId + '/project-assignments').then((response) => response.data),
   getCurrentAssignment: (deviceId) => api.get('/devices/' + deviceId + '/project-assignments/current').then((response) => response.data),
   assignDevice: (deviceId, payload) => api.post('/devices/' + deviceId + '/project-assignments', payload).then((response) => response.data),

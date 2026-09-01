@@ -497,7 +497,7 @@ ProjectKeystore는 프로젝트별 APK 서명 키스토어와 비밀번호를 �
 - GET /api/projects/{projectId}/keystores/{keystoreId}/download
 - DELETE /api/projects/{projectId}/keystores/{keystoreId}
 
-관리자 웹의 Projects 메뉴에서는 프로젝트 목록과 개요, 연결 기기, 네트워크, APK 탭을 제공합니다. 키스토어 화면은 아직 붙이지 않았고 현재는 Swagger UI의 Project Keystores 태그에서 확인할 수 있습니다. Device 상세의 현재 프로젝트 영역에서는 프로젝트 할당·종료, 설치 버전, 최신 APK 버전과 과거 이력을 확인할 수 있습니다.
+관리자 웹의 Projects 메뉴에서는 프로젝트 목록과 개요, 연결 기기, 네트워크, APK, 키스토어 탭을 제공합니다. 키스토어 탭에서는 파일과 alias, 비밀번호를 함께 등록하고 목록에서 비밀번호 보기, 비밀번호 변경, 다운로드, 삭제를 할 수 있습니다. 비밀번호 입력은 type="password"로 가리고, 목록에는 비밀번호를 표시하지 않으며 비밀번호 보기를 눌렀을 때만 별도 Dialog로 보여줍니다. 서명 키스토어를 잃으면 같은 서명으로 앱을 업데이트할 수 없으므로 삭제 전에 확인 창을 띄웁니다. Device 상세의 현재 프로젝트 영역에서는 프로젝트 할당·종료, 설치 버전, 최신 APK 버전과 과거 이력을 확인할 수 있습니다.
 
 ### Project 학습 내용
 

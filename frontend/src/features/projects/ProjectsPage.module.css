@@ -44,3 +44,10 @@
 .rowActions { display:flex; gap:10px; white-space:nowrap; }
 .rowActions button:last-child { color:var(--color-danger); }
 @media(max-width:1100px){.inlineForm,.uploadForm{grid-template-columns:1fr 1fr}.overview{grid-template-columns:1fr}}
+.notice { margin-bottom:12px; color:var(--color-text-secondary); font-size:13px; line-height:1.6; }
+.keystoreForm { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin:0 0 16px; padding:16px; background:#f8f9fa; border:1px solid var(--color-border); }
+.keystoreForm input { min-height:40px; padding:0 12px; border:1px solid var(--color-border-strong); border-radius:var(--radius-sm); font:inherit; }
+.secretList { display:flex; flex-direction:column; gap:14px; margin:0; padding:20px 24px; }
+.secretList dt { margin-bottom:5px; color:var(--color-text-secondary); font-size:12px; }
+.secretList dd { margin:0; padding:8px 12px; background:#f8f9fa; border:1px solid var(--color-border); border-radius:var(--radius-sm); font-family:ui-monospace,Menlo,Consolas,monospace; font-size:13px; overflow-wrap:anywhere; user-select:all; }
+@media(max-width:1100px){.keystoreForm{grid-template-columns:1fr 1fr}}
