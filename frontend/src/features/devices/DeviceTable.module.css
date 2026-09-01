@@ -2,13 +2,13 @@
 .table { width: 100%; min-width: 920px; border-collapse: collapse; table-layout: fixed; }
 .table th { height: 42px; padding: 0 var(--space-4); color: var(--color-text-secondary); background: #f8f9fa; border-bottom: 1px solid var(--color-border); text-align: left; font-size: 12px; font-weight: 650; white-space: nowrap; }
 .table td { height: 58px; padding: 9px var(--space-4); border-bottom: 1px solid #e8ebef; color: #344054; font-size: 14px; line-height: 1.4; vertical-align: middle; }
-.table th:nth-child(1) { width: 18%; }
-.table th:nth-child(2) { width: 11%; }
-.table th:nth-child(3) { width: 14%; }
-.table th:nth-child(4) { width: 18%; }
-.table th:nth-child(5) { width: 12%; }
-.table th:nth-child(6) { width: 13%; }
-.table th:nth-child(7) { width: 14%; }
+.table th:nth-child(1) { width: 20%; }
+.table th:nth-child(2) { width: 17%; }
+.table th:nth-child(3) { width: 10%; }
+.table th:nth-child(4) { width: 19%; }
+.table th:nth-child(5) { width: 11%; }
+.table th:nth-child(6) { width: 11%; }
+.table th:nth-child(7) { width: 12%; }
 .table tbody tr:last-child td { border-bottom: 0; }
 .table tbody tr:hover { background: #fafbfc; }
 .nameCell, .textCell { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

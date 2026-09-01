@@ -7,6 +7,8 @@ import org.springframework.transaction.annotation.Transactional
 class DeviceService(
     private val deviceRepository: DeviceRepository,
     private val adbDeviceService: AdbDeviceService,
+    private val deviceDeploymentRepository: DeviceDeploymentRepository,
+    private val deviceProjectRepository: DeviceProjectRepository,
 ) {
     @Transactional
     fun create(request: DeviceCreateRequest): DeviceResponse {
@@ -86,7 +88,19 @@ class DeviceService(
         modelName = modelName,
         osVersion = osVersion,
         serialNumber = serialNumber,
+        currentDeployment = deviceDeploymentRepository
+            .findFirstByDeviceIdAndReturnedAtIsNullOrderByDeployedAtDesc(requireNotNull(id))
+            ?.toSummaryResponse(),
+        projectCount = deviceProjectRepository.countByDeviceId(requireNotNull(id)),
         createdAt = createdAt,
         updatedAt = updatedAt,
     )
+
+    private fun DeviceDeployment.toSummaryResponse(): DeviceDeploymentSummaryResponse =
+        DeviceDeploymentSummaryResponse(
+            id = requireNotNull(id),
+            hospitalName = hospitalName,
+            deploymentType = deploymentType,
+            deployedAt = deployedAt,
+        )
 }

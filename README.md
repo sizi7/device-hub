@@ -367,3 +367,50 @@ serialNumber, manufacturer, modelName, productName, deviceName, osVersion, sdkVe
 ### 현재 제한사항
 
 웹 브라우저가 adb를 직접 실행하는 구조가 아니라 Spring Boot 서버 프로세스가 adb를 실행합니다. 따라서 현재 방식은 **Spring Boot 서버가 실행되는 PC에 USB로 직접 연결된 기기만** 감지할 수 있습니다. 서버를 원격 환경에 배포하면 관리자 PC의 USB 기기를 볼 수 없으므로, 추후에는 관리자 PC에서 동작하는 별도의 DeviceHub Agent가 필요할 수 있습니다.
+
+## 병원 배치 관리
+
+기기가 병원으로 나가는 경우를 DeviceDeployment 이력으로 관리합니다.
+
+- HOSPITAL_LOAN: 일정 기간 병원에 임시로 대여하는 배치입니다.
+- HOSPITAL_DEDICATED: 특정 병원에서 계속 사용하는 전용 기기 배치입니다.
+
+Device에 boolean이나 현재 병원명만 저장하면 회수 시 과거 정보를 잃기 때문에 배치 건마다 별도 행을 생성합니다. returnedAt이 null이면 현재 배치 중이고, 회수하면 해당 행의 returnedAt만 기록하므로 과거 병원·유형·기간·메모가 유지됩니다. 한 기기에 returnedAt이 null인 행이 하나만 존재하도록 서비스 검사와 PostgreSQL partial unique index를 함께 사용합니다.
+
+제공 API:
+
+- POST /api/devices/{deviceId}/deployments: 병원 배치
+- POST /api/devices/{deviceId}/deployments/return: 현재 배치 회수
+- GET /api/devices/{deviceId}/deployments: 전체 배치 이력
+- GET /api/devices/{deviceId}/deployments/current: 현재 배치 상태
+
+현재 hospitalName은 단순 문자열이므로 Hospital Entity에 강하게 결합되지 않습니다. 병원 자체 정보 관리가 필요해지는 단계에서 별도 Entity와 관계로 확장할 수 있습니다.
+
+## DeviceProject와 버전 관리
+
+한 Device에 여러 DeviceProject를 등록해 프로젝트명, Android packageName, 설치 버전, 최신 배포 버전과 마지막 업데이트 시각을 관리합니다.
+
+- installedVersion: 현재 기기에 실제로 설치된 버전입니다.
+- latestVersion: 현재 배포 기준으로 설치되어야 하는 최신 버전입니다.
+- lastUpdatedAt: 해당 기기의 앱을 마지막으로 설치하거나 업데이트한 시각입니다.
+- packageName: 현재는 선택값이며, 추후 adb shell dumpsys package 명령으로 설치 버전을 자동 조회할 때 사용할 수 있습니다.
+
+versionStatus는 버전 크기를 문자열로 비교하지 않습니다. 두 버전이 모두 있고 동일하면 LATEST, 두 값이 다르면 UPDATE_REQUIRED, 하나라도 없으면 UNKNOWN입니다. 이 단계에서는 정확한 semantic version 규칙을 정의하지 않았으므로 1.10과 1.9를 임의로 서열화하지 않고 동일 여부만 판단합니다.
+
+제공 API:
+
+- POST /api/devices/{deviceId}/projects
+- GET /api/devices/{deviceId}/projects
+- GET /api/devices/{deviceId}/projects/{projectId}
+- PUT /api/devices/{deviceId}/projects/{projectId}
+- DELETE /api/devices/{deviceId}/projects/{projectId}
+
+관리자 웹의 Device 상세 화면에서 현재 병원 상태, 배치·회수, 배치 이력과 프로젝트 추가·수정·삭제 및 버전 상태를 확인할 수 있습니다. Device 목록에는 상세 데이터를 모두 펼치지 않고 프로젝트 수와 현재 위치만 표시합니다.
+
+### 학습 내용
+
+- 현재 상태와 이력을 함께 관리해야 하는 데이터는 원본 Device의 boolean보다 별도 이력 Entity가 적합합니다.
+- returnedAt이 없는 행을 현재 상태로 해석하면 회수된 기록을 삭제하지 않고도 현재와 과거를 구분할 수 있습니다.
+- DB unique index는 동시에 들어오는 중복 배치 요청도 최종적으로 방어합니다.
+- DeviceProject는 Device와 다대일 관계이므로 한 기기에 여러 앱 정보를 독립적으로 저장할 수 있습니다.
+- 패키지명을 미리 저장하면 다음 단계에서 ADB 기반 설치 버전 조회로 확장하기 쉽습니다.

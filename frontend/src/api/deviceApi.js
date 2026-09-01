@@ -12,6 +12,14 @@ export const deviceApi = {
   create: (payload) => api.post('/devices', payload).then((response) => response.data),
   update: (id, payload) => api.put(`/devices/${id}`, payload).then((response) => response.data),
   remove: (id) => api.delete(`/devices/${id}`),
+  getDeployments: (deviceId) => api.get(`/devices/${deviceId}/deployments`).then((response) => response.data),
+  getCurrentDeployment: (deviceId) => api.get(`/devices/${deviceId}/deployments/current`).then((response) => response.data),
+  deploy: (deviceId, payload) => api.post(`/devices/${deviceId}/deployments`, payload).then((response) => response.data),
+  returnDeployment: (deviceId) => api.post(`/devices/${deviceId}/deployments/return`).then((response) => response.data),
+  getProjects: (deviceId) => api.get(`/devices/${deviceId}/projects`).then((response) => response.data),
+  createProject: (deviceId, payload) => api.post(`/devices/${deviceId}/projects`, payload).then((response) => response.data),
+  updateProject: (deviceId, projectId, payload) => api.put(`/devices/${deviceId}/projects/${projectId}`, payload).then((response) => response.data),
+  removeProject: (deviceId, projectId) => api.delete(`/devices/${deviceId}/projects/${projectId}`),
 }
 
 export function getApiErrorMessage(error) {

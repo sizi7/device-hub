@@ -6,6 +6,13 @@ function formatDate(value) {
   return new Intl.DateTimeFormat('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(value))
 }
 
+function getLocation(device) {
+  const deployment = device.currentDeployment
+  if (!deployment) return '사내'
+  const suffix = deployment.deploymentType === 'HOSPITAL_LOAN' ? '대여' : '전용'
+  return `${deployment.hospitalName} ${suffix}`
+}
+
 function TableState({ icon, title, description, action }) {
   return (
     <div className={styles.state}>
@@ -43,9 +50,9 @@ export default function DeviceTable({ devices, isLoading, error, hasSearch, onRe
         <thead>
           <tr>
             <th>이름</th>
-            <th>타입</th>
-            <th>제조사</th>
             <th>모델명</th>
+            <th>프로젝트</th>
+            <th>위치/상태</th>
             <th>OS 버전</th>
             <th>등록일</th>
             <th className={styles.actionHeader}>작업</th>
@@ -55,9 +62,9 @@ export default function DeviceTable({ devices, isLoading, error, hasSearch, onRe
           {devices.map((device) => (
             <tr key={device.id}>
               <td className={styles.nameCell}><button className={styles.nameButton} type="button" onClick={() => onDetail(device)} title={device.name}>{device.name}</button></td>
-              <td><span className={`${styles.badge} ${device.type === 'PHONE' ? styles.phone : styles.tablet}`}>{device.type === 'PHONE' ? '스마트폰' : '태블릿'}</span></td>
-              <td className={styles.textCell} title={device.manufacturer}>{device.manufacturer}</td>
               <td className={styles.textCell} title={device.modelName}>{device.modelName}</td>
+              <td>{device.projectCount || 0}개</td>
+              <td className={styles.textCell} title={getLocation(device)}>{getLocation(device)}</td>
               <td className={styles.textCell} title={device.osVersion || undefined}>{device.osVersion || <span className={styles.muted}>미입력</span>}</td>
               <td>{formatDate(device.createdAt)}</td>
               <td>

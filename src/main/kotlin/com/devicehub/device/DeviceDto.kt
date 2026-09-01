@@ -75,6 +75,12 @@ data class DeviceResponse(
     @field:Schema(description = "ADB 기기 일련번호", example = "R3XXXXXXXX", nullable = true)
     val serialNumber: String?,
 
+    @field:Schema(description = "현재 병원 배치 요약", nullable = true)
+    val currentDeployment: DeviceDeploymentSummaryResponse?,
+
+    @field:Schema(description = "등록된 프로젝트 수", example = "2")
+    val projectCount: Long,
+
     @field:Schema(description = "생성 시각", example = "2026-09-01T10:54:29.133456")
     val createdAt: LocalDateTime,
 

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import Icon from '../../components/common/Icon.jsx'
 import { deviceApi, getApiErrorMessage } from '../../api/deviceApi.js'
 import styles from './DeviceDrawer.module.css'
+import DeviceManagementSections from './DeviceManagementSections.jsx'
 
 const emptyForm = {
   name: '',
@@ -122,6 +123,7 @@ export default function DeviceDrawer({ mode, device, onClose, onSaved }) {
               <div><dt>등록일</dt><dd>{formatDateTime(device.createdAt)}</dd></div>
               <div><dt>마지막 수정</dt><dd>{formatDateTime(device.updatedAt)}</dd></div>
             </dl>
+            <DeviceManagementSections deviceId={device.id} />
           </div>
         ) : (
           <form className={styles.form} onSubmit={handleSubmit} noValidate>
