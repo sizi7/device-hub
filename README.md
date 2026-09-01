@@ -328,3 +328,42 @@ device-hub/
 - `table-layout: fixed`와 열 너비 지정은 데이터 길이가 달라도 테이블 구조가 흔들리지 않게 합니다.
 - `text-overflow: ellipsis`는 한 줄 표 셀을 안정적으로 유지하고, `overflow-wrap: anywhere`는 상세 화면의 긴 문자열을 안전하게 줄바꿈합니다.
 - React의 로딩·오류·빈 배열 상태를 각각 분기하면 사용자가 현재 목록 상태와 다음 행동을 명확히 알 수 있습니다.
+
+## ADB 연결 기기 자동 감지 및 등록
+
+관리자 웹의 **기기 등록** 버튼을 누르면 Spring Boot 서버가 실행되는 PC에서 ADB 연결 기기를 검색합니다. Android 기기를 찾으면 제조사, 모델, Android 버전, SDK 버전, Serial과 기기 타입을 보여주고 기존 등록 폼에 값을 채웁니다. 이름과 타입을 확인하거나 수정한 뒤 기존 POST /api/devices로 등록합니다.
+
+### 준비 사항
+
+1. PC에 Android SDK Platform Tools의 adb가 설치되어 있어야 합니다.
+2. Android 기기에서 개발자 옵션과 USB 디버깅을 활성화합니다.
+3. 데이터 통신이 가능한 USB 케이블로 Spring Boot 서버 PC에 기기를 연결합니다.
+4. 기기에 RSA 승인 창이 나타나면 연결을 허용합니다. 개인 개발 PC라면 “이 컴퓨터에서 항상 허용”을 선택할 수 있습니다.
+5. adb version과 adb devices 명령으로 연결 상태가 device인지 확인합니다.
+
+ADB가 PATH에 없다면 실행 전에 ADB_PATH 환경변수에 실행 파일 전체 경로를 지정할 수 있습니다. 별도 설정이 없으면 서버는 ANDROID_HOME, ANDROID_SDK_ROOT, Windows의 기본 Android SDK 경로, PATH 순서로 adb를 찾습니다. ADB 명령에는 5초 timeout을 적용하며, 명령과 인자를 분리하는 ProcessBuilder를 사용합니다.
+
+### 연결 상태
+
+- CONNECTED: 정상 기기 한 대를 감지했습니다.
+- NOT_FOUND: 연결된 기기가 없습니다. 관리자 웹에서 다시 검색하거나 기존 수동 등록 폼을 사용할 수 있습니다.
+- UNAUTHORIZED: 기기 화면에서 USB 디버깅 연결을 승인해야 합니다. 승인 후 다시 검색합니다.
+- OFFLINE: USB 케이블을 다시 연결하고 USB 디버깅 상태를 확인합니다.
+- MULTIPLE: 정상 연결된 기기가 여러 대이므로 관리자 웹에서 한 대를 선택합니다. 서버가 임의로 선택하지 않습니다.
+- ALREADY_REGISTERED: 같은 Serial이 이미 등록되어 있어 신규 등록을 차단합니다.
+- ADB_NOT_AVAILABLE: adb 실행 파일을 찾을 수 없습니다.
+- ERROR: adb 명령 또는 기기 정보 조회에 실패했습니다.
+
+### API와 타입 판단
+
+GET /api/devices/connected는 서버 PC의 adb devices 결과를 읽고, device 상태인 기기에만 adb -s {serial} shell getprop 명령을 실행합니다. serial은 HTTP 요청으로 받지 않고 바로 앞의 adb devices 출력에서 얻은 값만 사용합니다.
+
+serialNumber, manufacturer, modelName, productName, deviceName, osVersion, sdkVersion, type을 반환합니다. 기기 타입은 wm size와 wm density로 계산한 smallest width가 Android의 일반적인 large-screen 기준인 600dp 이상이면 TABLET, 미만이면 PHONE으로 판단합니다. 화면 정보를 읽지 못하면 임의 지정하지 않고 등록 폼에서 사용자가 선택하게 합니다.
+
+### Serial 저장과 중복 방지
+
+기존 수동 등록 데이터에 영향을 주지 않도록 serial_number는 nullable 컬럼입니다. 값이 존재하는 행에만 적용되는 PostgreSQL partial unique index로 같은 ADB 기기의 중복 등록을 DB에서도 방지합니다. 서비스는 저장 전 findBySerialNumber로 먼저 확인하며 중복 요청에는 HTTP 409를 반환합니다. 기존 수동 등록은 Serial 없이 계속 사용할 수 있습니다.
+
+### 현재 제한사항
+
+웹 브라우저가 adb를 직접 실행하는 구조가 아니라 Spring Boot 서버 프로세스가 adb를 실행합니다. 따라서 현재 방식은 **Spring Boot 서버가 실행되는 PC에 USB로 직접 연결된 기기만** 감지할 수 있습니다. 서버를 원격 환경에 배포하면 관리자 PC의 USB 기기를 볼 수 없으므로, 추후에는 관리자 PC에서 동작하는 별도의 DeviceHub Agent가 필요할 수 있습니다.

@@ -9,3 +9,9 @@ CREATE TABLE IF NOT EXISTS device (
     updated_at TIMESTAMP NOT NULL,
     CONSTRAINT device_type_check CHECK (type IN ('PHONE', 'TABLET'))
 );
+
+ALTER TABLE device ADD COLUMN IF NOT EXISTS serial_number VARCHAR(255);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_device_serial_number
+    ON device (serial_number)
+    WHERE serial_number IS NOT NULL;

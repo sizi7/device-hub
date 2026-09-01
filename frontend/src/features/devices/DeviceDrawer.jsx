@@ -9,6 +9,7 @@ const emptyForm = {
   manufacturer: '',
   modelName: '',
   osVersion: '',
+  serialNumber: '',
 }
 
 const modeText = {
@@ -29,6 +30,7 @@ export default function DeviceDrawer({ mode, device, onClose, onSaved }) {
     manufacturer: device.manufacturer,
     modelName: device.modelName,
     osVersion: device.osVersion || '',
+    serialNumber: device.serialNumber || '',
   } : emptyForm)
   const [fieldErrors, setFieldErrors] = useState({})
   const [submitError, setSubmitError] = useState('')
@@ -55,6 +57,7 @@ export default function DeviceDrawer({ mode, device, onClose, onSaved }) {
   const validate = () => {
     const errors = {}
     if (!form.name.trim()) errors.name = '기기 이름을 입력해 주세요.'
+    if (!form.type) errors.type = '기기 타입을 선택해 주세요.'
     if (!form.manufacturer.trim()) errors.manufacturer = '제조사를 입력해 주세요.'
     if (!form.modelName.trim()) errors.modelName = '모델명을 입력해 주세요.'
     setFieldErrors(errors)
@@ -67,11 +70,12 @@ export default function DeviceDrawer({ mode, device, onClose, onSaved }) {
     setIsSaving(true)
     setSubmitError('')
     const payload = {
-      ...form,
       name: form.name.trim(),
+      type: form.type,
       manufacturer: form.manufacturer.trim(),
       modelName: form.modelName.trim(),
       osVersion: form.osVersion.trim() || null,
+      ...(mode === 'create' && form.serialNumber ? { serialNumber: form.serialNumber } : {}),
     }
     try {
       const saved = mode === 'create'
@@ -114,6 +118,7 @@ export default function DeviceDrawer({ mode, device, onClose, onSaved }) {
               <div><dt>제조사</dt><dd>{device.manufacturer}</dd></div>
               <div><dt>모델명</dt><dd>{device.modelName}</dd></div>
               <div><dt>OS 버전</dt><dd>{device.osVersion || '미입력'}</dd></div>
+              <div><dt>Serial</dt><dd>{device.serialNumber || '수동 등록'}</dd></div>
               <div><dt>등록일</dt><dd>{formatDateTime(device.createdAt)}</dd></div>
               <div><dt>마지막 수정</dt><dd>{formatDateTime(device.updatedAt)}</dd></div>
             </dl>
@@ -130,9 +135,11 @@ export default function DeviceDrawer({ mode, device, onClose, onSaved }) {
               <div className={styles.field}>
                 <label htmlFor="device-type">기기 타입 <span>*</span></label>
                 <select id="device-type" name="type" value={form.type} onChange={updateField}>
+                  <option value="" disabled>기기 타입 선택</option>
                   <option value="PHONE">스마트폰</option>
                   <option value="TABLET">태블릿</option>
                 </select>
+                {fieldErrors.type && <p>{fieldErrors.type}</p>}
               </div>
               <div className={styles.field}>
                 <label htmlFor="manufacturer">제조사 <span>*</span></label>
@@ -148,6 +155,12 @@ export default function DeviceDrawer({ mode, device, onClose, onSaved }) {
                 <label htmlFor="os-version">OS 버전 <span className={styles.optional}>선택</span></label>
                 <input id="os-version" name="osVersion" value={form.osVersion} onChange={updateField} placeholder="예: Android 16" />
               </div>
+              {form.serialNumber && (
+                <div className={styles.field}>
+                  <label htmlFor="serial-number">Serial <span className={styles.optional}>ADB 감지</span></label>
+                  <input id="serial-number" name="serialNumber" value={form.serialNumber} readOnly />
+                </div>
+              )}
             </div>
             <div className={styles.formFooter}>
               <button className={styles.secondaryButton} type="button" onClick={onClose}>취소</button>

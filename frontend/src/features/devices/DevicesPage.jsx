@@ -4,6 +4,7 @@ import { deviceApi, getApiErrorMessage } from '../../api/deviceApi.js'
 import DeviceTable from './DeviceTable.jsx'
 import DeviceDrawer from './DeviceDrawer.jsx'
 import DeleteDialog from './DeleteDialog.jsx'
+import ConnectedDeviceDialog from './ConnectedDeviceDialog.jsx'
 import styles from './DevicesPage.module.css'
 
 export default function DevicesPage() {
@@ -14,6 +15,7 @@ export default function DevicesPage() {
   const [drawer, setDrawer] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [detection, setDetection] = useState(null)
 
   const loadDevices = useCallback(async () => {
     setIsLoading(true)
@@ -66,6 +68,36 @@ export default function DevicesPage() {
     }
   }
 
+  const detectConnectedDevice = async () => {
+    setDetection({ isLoading: true, result: null, error: '' })
+    try {
+      const result = await deviceApi.getConnected()
+      setDetection({ isLoading: false, result, error: '' })
+    } catch (requestError) {
+      setDetection({ isLoading: false, result: null, error: getApiErrorMessage(requestError) })
+    }
+  }
+
+  const openManualCreate = () => {
+    setDetection(null)
+    setDrawer({ mode: 'create' })
+  }
+
+  const openDetectedCreate = (device) => {
+    setDetection(null)
+    setDrawer({
+      mode: 'create',
+      device: {
+        name: device.modelName,
+        type: device.type || '',
+        manufacturer: device.manufacturer,
+        modelName: device.modelName,
+        osVersion: device.osVersion,
+        serialNumber: device.serialNumber,
+      },
+    })
+  }
+
   return (
     <section>
       <div className={styles.pageHeading}>
@@ -74,7 +106,7 @@ export default function DevicesPage() {
           <h1>Devices</h1>
           <p>등록된 업무용 기기와 운영체제 정보를 관리합니다.</p>
         </div>
-        <button className={styles.primaryButton} type="button" onClick={() => setDrawer({ mode: 'create' })}>
+        <button className={styles.primaryButton} type="button" onClick={detectConnectedDevice}>
           <Icon name="plus" size={18} />
           기기 등록
         </button>
@@ -124,7 +156,7 @@ export default function DevicesPage() {
           error={error}
           hasSearch={Boolean(searchTerm.trim())}
           onRetry={loadDevices}
-          onCreate={() => setDrawer({ mode: 'create' })}
+          onCreate={detectConnectedDevice}
           onDetail={(device) => setDrawer({ mode: 'detail', device })}
           onEdit={(device) => setDrawer({ mode: 'edit', device })}
           onDelete={setDeleteTarget}
@@ -146,6 +178,18 @@ export default function DevicesPage() {
           isDeleting={isDeleting}
           onCancel={() => setDeleteTarget(null)}
           onConfirm={handleDelete}
+        />
+      )}
+
+      {detection && (
+        <ConnectedDeviceDialog
+          isLoading={detection.isLoading}
+          result={detection.result}
+          error={detection.error}
+          onRetry={detectConnectedDevice}
+          onManual={openManualCreate}
+          onUseDevice={openDetectedCreate}
+          onClose={() => setDetection(null)}
         />
       )}
     </section>

@@ -30,6 +30,9 @@ class Device(
 
     @Column(name = "os_version")
     var osVersion: String?,
+
+    @Column(name = "serial_number", unique = true)
+    var serialNumber: String? = null,
 ) {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

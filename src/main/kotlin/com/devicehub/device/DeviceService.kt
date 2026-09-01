@@ -6,15 +6,21 @@ import org.springframework.transaction.annotation.Transactional
 @Service
 class DeviceService(
     private val deviceRepository: DeviceRepository,
+    private val adbDeviceService: AdbDeviceService,
 ) {
     @Transactional
     fun create(request: DeviceCreateRequest): DeviceResponse {
+        val serialNumber = request.serialNumber?.trim()?.takeIf(String::isNotEmpty)
+        if (serialNumber != null && deviceRepository.findBySerialNumber(serialNumber) != null) {
+            throw DuplicateSerialNumberException(serialNumber)
+        }
         val device = Device(
             name = request.name,
             type = requireNotNull(request.type),
             manufacturer = request.manufacturer,
             modelName = request.modelName,
             osVersion = request.osVersion,
+            serialNumber = serialNumber,
         )
 
         return deviceRepository.save(device).toResponse()
@@ -26,6 +32,31 @@ class DeviceService(
 
     @Transactional(readOnly = true)
     fun findById(id: Long): DeviceResponse = findDevice(id).toResponse()
+
+    @Transactional(readOnly = true)
+    fun findConnected(): ConnectedDeviceResponse {
+        val detected = adbDeviceService.findConnectedDevices()
+        if (detected.status != ConnectedDeviceStatus.CONNECTED) return detected
+
+        val devices = detected.devices.map { device ->
+            val registered = deviceRepository.findBySerialNumber(device.serialNumber)?.toResponse()
+            device.copy(registeredDevice = registered)
+        }
+        if (devices.size > 1) {
+            return ConnectedDeviceResponse(status = ConnectedDeviceStatus.MULTIPLE, devices = devices)
+        }
+
+        val device = devices.single()
+        return if (device.registeredDevice != null) {
+            ConnectedDeviceResponse(
+                status = ConnectedDeviceStatus.ALREADY_REGISTERED,
+                device = device,
+                registeredDevice = device.registeredDevice,
+            )
+        } else {
+            ConnectedDeviceResponse(status = ConnectedDeviceStatus.CONNECTED, device = device)
+        }
+    }
 
     @Transactional
     fun update(id: Long, request: DeviceUpdateRequest): DeviceResponse {
@@ -54,6 +85,7 @@ class DeviceService(
         manufacturer = manufacturer,
         modelName = modelName,
         osVersion = osVersion,
+        serialNumber = serialNumber,
         createdAt = createdAt,
         updatedAt = updatedAt,
     )

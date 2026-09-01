@@ -48,6 +48,15 @@ class DeviceController(
     fun findAll(): ResponseEntity<List<DeviceResponse>> =
         ResponseEntity.ok(deviceService.findAll())
 
+    @GetMapping("/connected")
+    @Operation(
+        summary = "ADB 연결 기기 감지",
+        description = "Spring Boot 서버 PC에 ADB로 연결된 Android 기기를 감지하고 연결 없음, USB 디버깅 미승인, offline, 다중 연결, 중복 등록 상태를 구분합니다.",
+    )
+    @ApiResponse(responseCode = "200", description = "ADB 감지 결과 반환")
+    fun findConnected(): ResponseEntity<ConnectedDeviceResponse> =
+        ResponseEntity.ok(deviceService.findConnected())
+
     @GetMapping("/{id}")
     @Operation(
         summary = "Device 상세 조회",

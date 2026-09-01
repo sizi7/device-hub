@@ -25,6 +25,9 @@ data class DeviceCreateRequest(
 
     @field:Schema(description = "운영체제 버전, 모르면 생략 가능", example = "Android 16", nullable = true)
     val osVersion: String?,
+
+    @field:Schema(description = "ADB 기기 일련번호, 수동 등록 시 생략 가능", example = "R3XXXXXXXX", nullable = true)
+    val serialNumber: String? = null,
 )
 
 @Schema(description = "Device 수정 요청")
@@ -68,6 +71,9 @@ data class DeviceResponse(
 
     @field:Schema(description = "운영체제 버전", example = "Android 16", nullable = true)
     val osVersion: String?,
+
+    @field:Schema(description = "ADB 기기 일련번호", example = "R3XXXXXXXX", nullable = true)
+    val serialNumber: String?,
 
     @field:Schema(description = "생성 시각", example = "2026-09-01T10:54:29.133456")
     val createdAt: LocalDateTime,

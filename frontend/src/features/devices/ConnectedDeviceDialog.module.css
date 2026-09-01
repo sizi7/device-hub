@@ -1,0 +1,31 @@
+.layer { position: fixed; inset: 0; z-index: 115; display: grid; place-items: center; padding: var(--space-6); }
+.backdrop { position: absolute; inset: 0; background: rgba(20, 28, 41, .46); }
+.dialog { position: relative; width: min(520px, 100%); max-height: calc(100vh - 48px); overflow-y: auto; background: #fff; border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+.header { display: flex; justify-content: space-between; gap: var(--space-5); padding: var(--space-6); border-bottom: 1px solid var(--color-border); }
+.header span { color: var(--color-text-muted); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+.header h2 { margin-top: 6px; font-size: 20px; }
+.header p { margin-top: var(--space-2); color: var(--color-text-secondary); font-size: 14px; line-height: 1.55; }
+.closeButton { width: 36px; height: 36px; display: grid; flex: 0 0 auto; place-items: center; color: var(--color-text-secondary); background: #fff; border: 1px solid var(--color-border); border-radius: var(--radius-sm); }
+.body { padding: var(--space-5) var(--space-6); }
+.loading { min-height: 130px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-3); color: var(--color-text-secondary); font-size: 14px; }
+.spinner { width: 26px; height: 26px; border: 3px solid #dde3ec; border-top-color: var(--color-brand-600); border-radius: 50%; animation: spin .8s linear infinite; }
+.guide { display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--space-4); color: var(--color-text-secondary); background: #f7f8fa; border: 1px solid var(--color-border); border-radius: var(--radius-sm); font-size: 14px; line-height: 1.55; }
+.deviceSummary { display: flex; flex-direction: column; gap: 5px; padding: var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-sm); }
+.deviceSummary strong, .deviceOption strong { color: var(--color-text); font-size: 15px; }
+.deviceSummary span, .deviceOption span span { color: var(--color-text-secondary); font-size: 13px; }
+.serial { overflow-wrap: anywhere; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+.deviceList { display: flex; flex-direction: column; gap: var(--space-2); }
+.deviceOption { display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-sm); cursor: pointer; }
+.deviceOption.selected { border-color: var(--color-brand-600); background: var(--color-brand-50); }
+.deviceOption > span { display: flex; min-width: 0; flex-direction: column; gap: 5px; }
+.registered { margin: var(--space-4) 0 0; }
+.registered div { display: grid; grid-template-columns: 110px 1fr; gap: var(--space-3); padding: var(--space-3) 0; border-bottom: 1px solid var(--color-border); font-size: 14px; }
+.registered dt { color: var(--color-text-secondary); }
+.registered dd { margin: 0; overflow-wrap: anywhere; font-weight: 600; }
+.actions { min-height: 68px; display: flex; align-items: center; justify-content: flex-end; gap: var(--space-2); padding: var(--space-3) var(--space-6); border-top: 1px solid var(--color-border); }
+.secondaryButton, .primaryButton { height: var(--control-height); padding: 0 var(--space-4); border-radius: var(--radius-sm); font-size: 14px; font-weight: 650; }
+.secondaryButton { color: var(--color-text-secondary); background: #fff; border: 1px solid var(--color-border-strong); }
+.primaryButton { color: #fff; background: var(--color-brand-700); border: 1px solid var(--color-brand-700); }
+.primaryButton:disabled { opacity: .55; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
