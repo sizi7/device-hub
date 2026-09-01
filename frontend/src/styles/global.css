@@ -1,0 +1,82 @@
+:root {
+  font-family: Inter, Pretendard, "Noto Sans KR", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #172033;
+  background: #f5f6f8;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+
+  --color-brand-700: #1f3f70;
+  --color-brand-600: #2d568f;
+  --color-brand-50: #f0f4f9;
+  --color-text: #182230;
+  --color-text-secondary: #52606f;
+  --color-text-muted: #75808f;
+  --color-border: #e1e5ea;
+  --color-border-strong: #cbd2da;
+  --color-surface: #ffffff;
+  --color-canvas: #f7f8fa;
+  --color-danger: #b42318;
+  --color-danger-bg: #fff1f0;
+  --color-success: #18794e;
+  --color-success-bg: #eaf7f0;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+
+  --radius-sm: 5px;
+  --radius-md: 6px;
+  --sidebar-width: 224px;
+  --header-height: 60px;
+  --control-height: 40px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-width: 320px;
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  min-height: 100vh;
+  overflow-wrap: anywhere;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 3px solid rgba(49, 93, 168, 0.18);
+  outline-offset: 1px;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}

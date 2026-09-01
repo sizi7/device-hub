@@ -1,0 +1,35 @@
+.layer { position: fixed; inset: 0; z-index: 100; }
+.backdrop { position: absolute; inset: 0; width: 100%; height: 100%; padding: 0; border: 0; background: rgba(20, 28, 41, .42); cursor: default; }
+.drawer { position: absolute; inset: 0 0 0 auto; width: min(500px, 92vw); display: flex; flex-direction: column; background: #fff; border-left: 1px solid var(--color-border); }
+.drawerHeader { min-height: 132px; display: flex; justify-content: space-between; gap: var(--space-5); padding: var(--space-6); border-bottom: 1px solid var(--color-border); }
+.drawerHeader span { color: var(--color-text-muted); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+.drawerHeader h2 { margin-top: var(--space-2); font-size: 23px; }
+.drawerHeader p { margin-top: var(--space-2); color: var(--color-text-secondary); font-size: 14px; line-height: 1.5; }
+.closeButton { width: 36px; height: 36px; display: grid; flex: 0 0 auto; place-items: center; color: var(--color-text-secondary); background: #fff; border: 1px solid var(--color-border); border-radius: var(--radius-sm); }
+.closeButton:hover { background: #f5f6f8; color: var(--color-text); }
+.form { min-height: 0; flex: 1; display: flex; flex-direction: column; }
+.formBody { flex: 1; overflow-y: auto; padding: var(--space-6); }
+.field { margin-bottom: 18px; }
+.field label { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-2); color: #344054; font-size: 14px; font-weight: 650; }
+.field label > span:not(.optional) { margin-left: 3px; margin-right: auto; color: var(--color-danger); }
+.field .optional { color: var(--color-text-muted); font-size: 12px; font-weight: 500; text-transform: none; letter-spacing: 0; }
+.field input, .field select { width: 100%; height: var(--control-height); padding: 0 var(--space-3); color: var(--color-text); background: #fff; border: 1px solid var(--color-border-strong); border-radius: var(--radius-sm); font-size: 14px; }
+.field input:focus, .field select:focus { border-color: var(--color-brand-600); }
+.field input[aria-invalid="true"] { border-color: #d92d20; }
+.field > p { margin-top: 6px; color: var(--color-danger); font-size: 12px; }
+.formError { display: flex; gap: var(--space-2); align-items: center; margin-bottom: var(--space-5); padding: var(--space-3); color: var(--color-danger); background: var(--color-danger-bg); border: 1px solid #f3c7c3; border-radius: var(--radius-sm); font-size: 13px; }
+.formFooter { display: flex; justify-content: flex-end; gap: var(--space-2); padding: var(--space-4) var(--space-6); border-top: 1px solid var(--color-border); background: #fff; }
+.secondaryButton, .primaryButton { height: 40px; padding: 0 var(--space-4); border-radius: var(--radius-sm); font-size: 14px; font-weight: 650; }
+.secondaryButton { color: var(--color-text-secondary); background: #fff; border: 1px solid var(--color-border-strong); }
+.primaryButton { min-width: 108px; color: #fff; background: var(--color-brand-700); border: 1px solid var(--color-brand-700); }
+.primaryButton:disabled { cursor: not-allowed; opacity: .65; }
+.detailBody { flex: 1; overflow-y: auto; padding: var(--space-6); }
+.deviceIdentity { display: flex; align-items: center; gap: var(--space-4); padding-bottom: var(--space-6); border-bottom: 1px solid var(--color-border); }
+.deviceGlyph { width: 48px; height: 48px; display: grid; flex: 0 0 auto; place-items: center; color: var(--color-text-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+.deviceIdentity > div { min-width: 0; }
+.deviceIdentity h3 { margin-bottom: var(--space-2); overflow-wrap: anywhere; font-size: 18px; }
+.typeBadge { display: inline-flex; padding: 3px 8px; color: var(--color-text-secondary) !important; background: #f4f5f7; border-radius: 12px; font-size: 11px !important; letter-spacing: 0 !important; }
+.detailList { margin: var(--space-2) 0 0; }
+.detailList div { display: grid; grid-template-columns: 130px 1fr; gap: var(--space-4); padding: var(--space-4) 0; border-bottom: 1px solid #ebedf0; }
+.detailList dt { color: var(--color-text-secondary); font-size: 13px; }
+.detailList dd { min-width: 0; margin: 0; overflow-wrap: anywhere; color: var(--color-text); font-size: 14px; font-weight: 550; }

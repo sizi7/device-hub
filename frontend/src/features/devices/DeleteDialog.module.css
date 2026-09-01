@@ -1,0 +1,12 @@
+.layer { position: fixed; inset: 0; z-index: 120; display: grid; place-items: center; padding: var(--space-6); }
+.backdrop { position: absolute; inset: 0; background: rgba(20,28,41,.48); }
+.dialog { position: relative; width: min(430px, 100%); padding: var(--space-6); background: #fff; border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+.icon { width: 40px; height: 40px; display: grid; place-items: center; margin-bottom: var(--space-4); color: var(--color-danger); }
+.dialog h2 { font-size: 19px; }
+.dialog p { margin-top: var(--space-2); color: var(--color-text-secondary); font-size: 14px; line-height: 1.65; }
+.dialog p strong { color: var(--color-text); }
+.actions { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-6); }
+.actions button { height: 40px; min-width: 76px; padding: 0 var(--space-4); border-radius: var(--radius-sm); font-size: 14px; font-weight: 650; }
+.actions button:disabled { cursor: not-allowed; opacity: .6; }
+.cancelButton { color: var(--color-text-secondary); background: #fff; border: 1px solid var(--color-border-strong); }
+.deleteButton { color: #fff; background: var(--color-danger); border: 1px solid var(--color-danger); }
