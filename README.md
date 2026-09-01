@@ -432,7 +432,7 @@ ProjectNetwork는 한 프로젝트의 환경별 접속 주소를 관리합니다
 - DEVELOPMENT: 개발 및 테스트 환경
 - BUSINESS: 사업부 운영 환경
 
-현재는 환경 이름, API URL, Socket URL과 설명만 저장합니다. Password, API Key, Secret, Token은 평문 DB 컬럼으로 추가하지 않습니다. 민감정보가 필요해지면 암호화, 접근 제어, 감사 로그와 외부 Secret Manager를 포함한 별도 보안 설계가 필요합니다.
+현재는 환경 이름, API URL, Socket URL과 설명만 저장합니다. Password, API Key, Secret, Token은 평문 DB 컬럼으로 추가하지 않습니다. 민감정보 중 키스토어 비밀번호만 예외적으로 아래 프로젝트 키스토어에서 암호화 저장 방식으로 다룹니다.
 
 ### 프로젝트 APK
 
@@ -446,6 +446,31 @@ ProjectApk는 version, Android versionCode, 환경, 원본 파일명, 저장 경
 - APK 삭제 시 DB 메타데이터와 로컬 파일을 함께 삭제합니다.
 
 DeviceProjectAssignment 응답은 프로젝트명과 일치하는 기존 DeviceProject의 installedVersion과 프로젝트의 최신 업로드 APK 버전을 비교합니다. 둘이 같으면 LATEST, 다르면 UPDATE_REQUIRED, 한쪽이 없으면 UNKNOWN입니다. semantic version 크기 비교는 하지 않습니다.
+
+### 프로젝트 키스토어
+
+ProjectKeystore는 프로젝트별 APK 서명 키스토어와 비밀번호를 관리합니다. 키스토어 파일은 DB에 넣지 않고 기본적으로 storage/keystores/{projectCode} 아래에 UUID 파일명으로 저장하며, 저장 위치는 KEYSTORE_STORAGE_PATH 환경변수로 변경할 수 있습니다.
+
+- .jks, .keystore, .p12, .pfx 확장자만 허용합니다.
+- 파일당 최대 크기는 10MB입니다.
+- 파일 앞 4byte로 형식을 판별합니다. JKS는 magic number 0xFEEDFEED, PKCS12는 DER SEQUENCE 0x30으로 시작합니다.
+- 업로드 시 실제로 KeyStore를 열어 스토어 비밀번호, alias 존재 여부, 키 비밀번호를 모두 검증한 뒤에만 저장합니다. 검증에 실패하면 저장한 파일을 지우고 400을 반환합니다.
+- 키 비밀번호를 비우면 스토어 비밀번호와 같다고 보고 keyPasswordEnc를 null로 저장합니다.
+- 키스토어 삭제 시 DB 메타데이터와 로컬 파일을 함께 삭제합니다.
+
+#### 비밀번호 암호화
+
+로그인 비밀번호와 달리 키스토어 비밀번호는 실제 APK 서명에 원문이 필요하므로 단방향 해시를 쓸 수 없습니다. SecretEncryptor가 AES-GCM 대칭키 암호화로 처리합니다.
+
+- 마스터 키는 devicehub.security.secret-key로 주입하며 환경변수는 KEYSTORE_SECRET_KEY입니다.
+- 주입한 문자열을 SHA-256으로 32byte AES 키로 변환합니다.
+- 암호화마다 12byte IV를 새로 생성하고 "IV + 암호문"을 Base64로 저장합니다. 같은 비밀번호라도 매번 암호문이 달라 서로 비교당하지 않습니다.
+- KEYSTORE_SECRET_KEY를 설정하지 않으면 개발용 기본 키를 쓰고 시작 시 WARN 로그를 남깁니다. 운영 환경에서는 반드시 설정해야 합니다.
+- 마스터 키를 바꾸면 기존에 저장한 비밀번호는 복호화할 수 없습니다.
+
+목록과 상세 응답에는 비밀번호를 절대 포함하지 않습니다. 복호화한 값은 POST /reveal 로만 조회하며, URL과 브라우저 기록에 남지 않도록 GET이 아닌 POST로 제공합니다.
+
+아직 인증과 권한 기능이 없으므로 API에 접근할 수 있는 사람은 누구나 비밀번호를 조회할 수 있습니다. 외부에 노출되는 환경에 배포하기 전에 인증, 권한과 감사 로그가 필요합니다.
 
 ### Project API
 
@@ -461,8 +486,16 @@ DeviceProjectAssignment 응답은 프로젝트명과 일치하는 기존 DeviceP
 - GET /api/projects/{projectId}/devices
 - /api/projects/{projectId}/networks 하위 CRUD
 - /api/projects/{projectId}/apks 하위 업로드, 조회, 다운로드, 최신 조회와 삭제
+- POST /api/projects/{projectId}/keystores (multipart 업로드)
+- GET /api/projects/{projectId}/keystores
+- GET /api/projects/{projectId}/keystores/{keystoreId}
+- POST /api/projects/{projectId}/keystores/{keystoreId}/reveal (비밀번호 복호화 조회)
+- PUT /api/projects/{projectId}/keystores/{keystoreId} (이름·설명 수정)
+- PUT /api/projects/{projectId}/keystores/{keystoreId}/password (alias·비밀번호 변경)
+- GET /api/projects/{projectId}/keystores/{keystoreId}/download
+- DELETE /api/projects/{projectId}/keystores/{keystoreId}
 
-관리자 웹의 Projects 메뉴에서는 프로젝트 목록과 개요, 연결 기기, 네트워크, APK 탭을 제공합니다. Device 상세의 현재 프로젝트 영역에서는 프로젝트 할당·종료, 설치 버전, 최신 APK 버전과 과거 이력을 확인할 수 있습니다.
+관리자 웹의 Projects 메뉴에서는 프로젝트 목록과 개요, 연결 기기, 네트워크, APK 탭을 제공합니다. 키스토어 화면은 아직 붙이지 않았고 현재는 Swagger UI의 Project Keystores 태그에서 확인할 수 있습니다. Device 상세의 현재 프로젝트 영역에서는 프로젝트 할당·종료, 설치 버전, 최신 APK 버전과 과거 이력을 확인할 수 있습니다.
 
 ### Project 학습 내용
 
@@ -470,4 +503,9 @@ DeviceProjectAssignment 응답은 프로젝트명과 일치하는 기존 DeviceP
 - 현재 관계와 과거 이력이 모두 필요하면 중간 이력 Entity에 시작·종료 시각을 저장합니다.
 - multipart/form-data는 파일과 버전 메타데이터를 한 요청으로 전달합니다.
 - 파일 binary와 검색 가능한 메타데이터를 분리하면 DB 크기와 다운로드 처리를 단순하게 유지할 수 있습니다.
-- Swagger UI에서 Projects, Project Networks, Project APKs, Device Project Assignments 태그별 요청 필드, 상태 코드와 multipart 파라미터 설명을 확인할 수 있습니다.
+- Swagger UI에서 Projects, Project Networks, Project APKs, Project Keystores, Device Project Assignments 태그별 요청 필드, 상태 코드와 multipart 파라미터 설명을 확인할 수 있습니다.
+- 되돌릴 필요가 있는 비밀값은 해시가 아니라 대칭키 암호화로 저장하고, 마스터 키는 코드나 DB가 아니라 환경변수로 분리합니다.
+- AES-GCM은 암호화와 무결성 검증을 함께 제공하므로 저장한 암호문이 변조되면 복호화 단계에서 예외가 발생합니다.
+- @Value로 설정값을 주입하는 @Component를 만들면 암호화 같은 공통 기능을 서비스에서 재사용할 수 있습니다.
+- JDK 9부터 JKS와 PKCS12 KeyStore 구현이 서로의 형식도 읽어주기 때문에, KeyStore.load 성공 여부로는 실제 파일 형식을 구분할 수 없고 파일 magic number를 봐야 합니다.
+- 파일을 먼저 저장한 뒤 검증에 실패하면 try-catch에서 저장한 파일을 지워야 storage에 쓰레기 파일이 남지 않습니다.

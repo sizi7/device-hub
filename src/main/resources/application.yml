@@ -22,3 +22,7 @@ devicehub:
     path: ${ADB_PATH:}
   storage:
     apk-path: ${APK_STORAGE_PATH:storage/apks}
+    keystore-path: ${KEYSTORE_STORAGE_PATH:storage/keystores}
+  security:
+    # 키스토어 비밀번호 암호화용 마스터 키. 운영 환경에서는 반드시 KEYSTORE_SECRET_KEY를 설정한다.
+    secret-key: ${KEYSTORE_SECRET_KEY:devicehub-local-dev-secret-key}
