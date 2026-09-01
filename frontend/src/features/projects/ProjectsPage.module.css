@@ -36,6 +36,7 @@
 .overview .full { grid-column:1/-1; }
 .overview dt { color:var(--color-text-secondary); font-size:12px; }
 .overview dd { margin:5px 0 0; overflow-wrap:anywhere; font-weight:600; }
+.overview .full dd { white-space:pre-line; line-height:1.7; }
 .sectionAction { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
 .sectionAction h2 { font-size:17px; }
 .inlineForm,.uploadForm { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin:16px 0; padding:16px; background:#f8f9fa; border:1px solid var(--color-border); }
