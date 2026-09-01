@@ -1,6 +1,12 @@
 import axios from 'axios'
+import { getApiErrorMessage } from './deviceApi.js'
 
 const api = axios.create({ baseURL: '/api', timeout: 30000 })
+
+// 키스토어 검증처럼 백엔드가 구체적인 실패 사유를 내려주는 경우 그 메시지를 그대로 보여준다.
+export function getServerErrorMessage(error) {
+  return error.response?.data?.message || getApiErrorMessage(error)
+}
 
 export const projectApi = {
   getAll: () => api.get('/projects').then((response) => response.data),

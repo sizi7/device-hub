@@ -472,6 +472,8 @@ ProjectKeystore는 프로젝트별 APK 서명 키스토어와 비밀번호를 �
 
 아직 인증과 권한 기능이 없으므로 API에 접근할 수 있는 사람은 누구나 비밀번호를 조회할 수 있습니다. 외부에 노출되는 환경에 배포하기 전에 인증, 권한과 감사 로그가 필요합니다.
 
+키스토어 검증 실패 사유를 화면에 그대로 보여주기 위해 server.error.include-message를 always로 설정했습니다. 프론트에서는 projectApi.js의 getServerErrorMessage가 응답 body의 message를 우선 사용하고, message가 없으면 기존 getApiErrorMessage로 넘어갑니다.
+
 ### Project API
 
 - POST /api/projects
