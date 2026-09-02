@@ -6,7 +6,7 @@ const navigation = [
   { label: 'Devices', icon: 'devices', ready: true },
   { label: 'Projects', icon: 'apps', ready: true },
   { label: 'Apps', icon: 'apps' },
-  { label: 'Users', icon: 'users' },
+  { label: 'Users', icon: 'users', ready: true, adminOnly: true },
   { label: 'Settings', icon: 'settings' },
 ]
 
@@ -16,7 +16,10 @@ const roleLabels = {
   ROLE_USER: '일반 사용자',
 }
 
-export default function AppShell({ activePage, onNavigate, user, onLogout, children }) {
+export default function AppShell({ activePage, onNavigate, user, onLogout, onChangePassword, children }) {
+  // 관리자 전용 메뉴는 권한이 없으면 목록에서 감춘다. 실제 차단은 백엔드 @PreAuthorize가 담당한다.
+  const menu = navigation.filter((item) => !item.adminOnly || user?.role === 'ROLE_ADMIN')
+
   return (
     <div className={styles.shell}>
       <aside className={styles.sidebar}>
@@ -25,7 +28,7 @@ export default function AppShell({ activePage, onNavigate, user, onLogout, child
           <span>DeviceHub</span>
         </div>
         <nav className={styles.navigation} aria-label="주 메뉴">
-          {navigation.map((item) => (
+          {menu.map((item) => (
             <button
               className={`${styles.navItem} ${activePage === item.label ? styles.active : ''}`}
               key={item.label}
@@ -60,6 +63,7 @@ export default function AppShell({ activePage, onNavigate, user, onLogout, child
               <strong>{user?.name || user?.username}</strong>
               <span>{roleLabels[user?.role] || user?.role}</span>
             </div>
+            <button className={styles.logout} type="button" onClick={onChangePassword}>비밀번호 변경</button>
             <button className={styles.logout} type="button" onClick={onLogout}>로그아웃</button>
           </div>
         </header>

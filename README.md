@@ -4,7 +4,7 @@
 
 React, Vite, JavaScript, axios, CSS Modules로 DeviceHub 관리자 웹을 구성했다. 별도 UI 라이브러리와 전역 상태 관리 도구는 사용하지 않고 `useState`, `useEffect`를 사용한다.
 
-현재 실제 기능이 연결된 메뉴는 `Devices`와 `Projects`이며 Dashboard, Apps, Users, Settings는 향후 기능을 위한 화면 구조만 제공한다.
+현재 실제 기능이 연결된 메뉴는 `Devices`, `Projects`, `Users`(관리자 전용)이며 Dashboard, Apps, Settings는 향후 기능을 위한 화면 구조만 제공한다.
 
 ### 관리자 웹 실행
 
@@ -214,13 +214,14 @@ Remove-Item Env:PGPASSWORD
 - DeviceProject 기반 기기별 앱 설치 버전 관리 완료
 - 독립 Project 관리 완료: Project CRUD, DeviceProjectAssignment 할당 이력, 프로젝트 네트워크, 프로젝트 APK 업로드·다운로드
 - 프로젝트 키스토어 완료: 키스토어 업로드·검증·다운로드·삭제와 AES-GCM 비밀번호 암호화 저장, 복호화 조회
-- React 관리자 웹 완료: Devices, Projects 메뉴에 실제 API 연동. Dashboard, Apps, Users, Settings는 화면 구조만 제공
+- React 관리자 웹 완료: Devices, Projects, Users 메뉴에 실제 API 연동. Dashboard, Apps, Settings는 화면 구조만 제공
 - 인증·인가 완료: Spring Security와 JWT 로그인, UserRole 3종, 키스토어 API 역할 제한, 관리자 웹 로그인 화면
+- 사용자 관리 완료: 관리자 전용 Users 화면과 CRUD API, 관리자 비밀번호 재설정, 본인 비밀번호 변경
 
 다음 단계(미진행):
 
 - 키스토어 암호화 마스터 키 교체. DEFAULT_SECRET_KEY를 없애려면 기존 암호문 재암호화 절차가 먼저 필요합니다.
-- 키스토어와 Project API의 통합 테스트. 현재 테스트는 `SecretEncryptorTest`, `JwtTokenProviderTest`, `KeystoreSecurityTest`, `HealthControllerTest`입니다.
+- 키스토어와 Project API의 통합 테스트. 현재 테스트는 `SecretEncryptorTest`, `JwtTokenProviderTest`, `KeystoreSecurityTest`, `UserManagementTest`, `HealthControllerTest`입니다.
 
 현재는 Spring Web, Spring Data JPA, Spring Validation, Spring Security, springdoc-openapi, jjwt, Jackson Kotlin Module, PostgreSQL JDBC Driver를 사용합니다. Docker는 아직 추가하지 않았습니다.
 
@@ -643,7 +644,40 @@ $env:JWT_SECRET = "32byte 이상 임의 문자열"
 .\gradlew.bat bootRun
 ```
 
-이후 사용자는 `ROLE_ADMIN`이 `POST /api/users`로 추가합니다. `GET /api/users`도 `ROLE_ADMIN` 전용이며 두 응답 모두 비밀번호를 포함하지 않습니다. 사용자 관리 화면은 이번 단계에서 만들지 않았고 API까지만 제공합니다.
+이후 사용자는 `ROLE_ADMIN`이 관리자 웹의 Users 메뉴나 아래 API로 추가합니다.
+
+### 사용자 관리 API
+
+모두 `ROLE_ADMIN` 전용이며 어떤 응답에도 비밀번호를 포함하지 않습니다.
+
+| API | 설명 |
+| --- | --- |
+| `POST /api/users` | 사용자 생성 |
+| `GET /api/users` | 사용자 목록 |
+| `GET /api/users/{id}` | 사용자 상세 |
+| `PUT /api/users/{id}` | 표시 이름, 역할, 활성 여부 수정 |
+| `PUT /api/users/{id}/password` | 관리자에 의한 비밀번호 재설정 |
+| `DELETE /api/users/{id}` | 사용자 삭제 |
+
+`username`은 만든 뒤 바꾸지 않습니다. 로그인 ID가 바뀌면 감사 로그에 남은 이름과 실제 계정이 어긋나기 때문입니다.
+
+시스템이 잠기지 않도록 두 가지 안전장치를 둡니다. 둘 다 409를 반환합니다.
+
+- 본인 계정은 삭제할 수 없습니다.
+- 활성 `ROLE_ADMIN`이 0명이 되는 변경(마지막 관리자의 역할 강등, 비활성화, 삭제)은 거부합니다.
+
+계정을 비활성화하면 로그인할 수 없고(`403`), 이미 발급된 token도 즉시 인증되지 않습니다. `JwtAuthenticationFilter`가 요청마다 `enabled`와 역할을 다시 확인하기 때문입니다.
+
+### 비밀번호 변경
+
+두 가지 경로가 있습니다.
+
+- **본인 변경**: `PUT /api/auth/password`. 역할과 무관하게 로그인한 사용자면 누구나 호출할 수 있고 현재 비밀번호를 함께 확인합니다. 현재 비밀번호가 틀리면 400입니다.
+- **관리자 재설정**: `PUT /api/users/{id}/password`. 현재 비밀번호를 묻지 않습니다. 비밀번호를 잊은 사용자를 위한 경로이며, 새 비밀번호는 화면에 표시하지 않고 관리자가 본인에게 직접 전달합니다.
+
+저장된 비밀번호는 BCrypt 해시라서 관리자도 원래 값을 볼 수 없습니다. 확인이 아니라 재설정만 가능합니다.
+
+비밀번호를 바꿔도 이미 발급된 access token은 만료 전까지 유효합니다. token에 비밀번호 정보가 들어 있지 않기 때문입니다. 즉시 무효화하려면 계정을 잠시 비활성화하거나 token 버전을 두는 구조가 필요한데, 이번 단계 범위를 넘어서므로 넣지 않았습니다.
 
 ### 키스토어 역할 제한
 
@@ -709,6 +743,8 @@ token은 `sessionStorage`에 보관합니다. 메모리에만 두면 새로고�
 - `401`: 인증 상태를 지우고 로그인 화면으로 돌아갑니다.
 - `403`: 로그인 화면으로 보내지 않고 권한 부족 메시지만 보여줍니다.
 
+Users 메뉴는 `ROLE_ADMIN`에게만 보입니다. 사용자 목록, 추가, 이름·역할·활성 여부 수정, 비밀번호 재설정, 삭제를 한 화면에서 처리합니다. 본인 행에는 "나" 표시가 붙고 삭제 버튼이 비활성화됩니다. 헤더의 "비밀번호 변경" 버튼은 역할과 무관하게 모든 사용자에게 보이며, 현재 비밀번호와 새 비밀번호를 확인하는 Dialog를 엽니다. 입력한 비밀번호는 요청이 끝나면 즉시 state에서 지웁니다.
+
 키스토어 탭에서는 `ROLE_USER`에게 등록 폼과 비밀번호 보기·변경·다운로드·삭제 버튼을 숨깁니다. 화면에서 숨기는 것은 편의를 위한 보조 수단이고 실제 차단은 백엔드 `@PreAuthorize`가 담당합니다. 비밀번호 보기 Dialog는 닫으면 즉시 state에서 지우고, 방치되면 45초 후 자동으로 닫힙니다.
 
 ### 이번 단계에서 하지 않은 것
@@ -719,3 +755,5 @@ token은 `sessionStorage`에 보관합니다. 메모리에만 두면 새로고�
 - 기존 키스토어 비밀번호 재암호화와 마스터 키 rotation
 - APK 실제 서명 기능
 - Refresh Token, OAuth, SSO, 조직·부서 기반 RBAC
+- 비밀번호 변경 시 기존 token 즉시 무효화
+- 비밀번호 찾기와 메일 발송
