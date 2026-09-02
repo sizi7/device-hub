@@ -498,6 +498,39 @@ ProjectKeystore는 프로젝트별 APK 서명 키스토어와 비밀번호를 �
 
 키스토어 검증 실패 사유를 화면에 그대로 보여주기 위해 server.error.include-message를 always로 설정했습니다. 프론트에서는 projectApi.js의 getServerErrorMessage가 응답 body의 message를 우선 사용하고, message가 없으면 기존 getApiErrorMessage로 넘어갑니다.
 
+#### 보안 점검 결과 (2026-09-02)
+
+키스토어 관리 기능을 코드, DB, 파일 저장, API, 로그, 프론트엔드 기준으로 점검했습니다. 실제 비밀번호와 마스터 키 값은 점검 과정과 기록 어디에도 남기지 않았습니다.
+
+문제가 없다고 확인한 항목입니다.
+
+- DB에 평문 비밀번호가 없습니다. project_keystore에는 store_password_enc와 key_password_enc만 존재하며 저장값은 AES-GCM 암호문입니다.
+- 목록과 상세 응답에 비밀번호와 서버 내부 filePath가 포함되지 않습니다.
+- 업로드 파일은 확장자, 파일 앞 4byte magic number, 실제 KeyStore.load와 alias·키 비밀번호 검증까지 3단계로 확인합니다. 확장자만 바꾼 파일은 400으로 거부하고 저장한 파일을 지웁니다.
+- 저장 파일명은 UUID, 디렉터리는 projectCode를 sanitize한 값이며 storageRoot 밖으로 나가지 못합니다. 파일명에 ../ 를 넣어도 storage 밖에 파일이 생기지 않습니다.
+- 키스토어 파일은 정적 리소스 경로와 분리된 storage/keystores 아래에 있고 .gitignore로 제외됩니다.
+- 비밀번호를 로그로 남기는 코드가 없습니다. 백엔드 로거 사용은 SecretEncryptor의 기본 키 경고 한 곳뿐입니다.
+- 프론트엔드는 비밀번호를 localStorage나 sessionStorage에 저장하지 않고 console에도 출력하지 않습니다. 입력은 type="password"로 가립니다.
+- APK 서명 기능이 없으므로 비밀번호를 커맨드라인 인자로 넘기거나 임시 파일에 쓰는 경로가 없습니다. ProcessBuilder는 ADB 호출 한 곳뿐이며 shell을 거치지 않습니다.
+- CORS를 따로 열어두지 않았습니다. allowedOrigins를 "*"로 설정한 곳이 없습니다.
+- Swagger 문서에 비밀번호 example 값이 없습니다.
+
+이번에 조치한 항목입니다.
+
+- POST /reveal 과 GET /download 응답에 Cache-Control: no-store를 추가했습니다. 복호화한 비밀번호와 키스토어 파일이 브라우저나 중간 캐시에 남지 않도록 합니다.
+- .gitignore에 *.jks, *.keystore, *.p12, *.pfx 패턴을 추가했습니다. storage/ 밖에 키스토어를 두더라도 커밋되지 않습니다.
+
+아직 남은 위험과 별도 작업 항목입니다.
+
+- 인증과 권한이 없어 네트워크로 서버에 닿을 수 있으면 누구나 POST /reveal 로 비밀번호를 조회하고 GET /download 로 키스토어 파일을 받을 수 있습니다. 가장 시급한 과제입니다.
+- KEYSTORE_SECRET_KEY를 설정하지 않으면 소스와 application.yml에 있는 기본 키를 사용합니다. 이 값은 저장소에 공개되어 있으므로 DB 덤프만 유출되어도 저장된 비밀번호를 복호화할 수 있습니다. 기본값을 제거하려면 기존 암호문을 새 키로 다시 암호화하는 절차가 먼저 필요합니다.
+- Swagger UI가 인증 없이 열려 있어 Try it out으로 비밀번호를 조회할 수 있습니다.
+- server.error.include-message가 always라서 예외 메시지가 그대로 전달됩니다. 지금 키스토어 관련 메시지에는 민감정보가 없지만, 앞으로 RestControllerAdvice로 노출 메시지를 통제한 뒤 회수하는 편이 안전합니다.
+- delete는 파일을 먼저 지우고 DB 삭제는 커밋 시점에 반영됩니다. 커밋이 실패하면 파일만 사라집니다. upload도 커밋 단계에서 실패하면 storage에 파일이 남습니다.
+- 비밀번호 조회에 대한 감사 로그가 없습니다.
+
+현재 상태로는 개인 로컬 개발 환경에서만 사용하고, 사내 내부망이나 운영 서버에는 인증과 마스터 키 정비를 마친 뒤 배포해야 합니다.
+
 ### Project API
 
 - POST /api/projects
