@@ -1,4 +1,7 @@
 server:
+  # 인증 기능이 없으므로 기본적으로 이 PC에서만 접속할 수 있게 localhost에만 바인딩한다.
+  # 다른 기기에서 접속해야 하면 SERVER_ADDRESS=0.0.0.0 으로 실행한다.
+  address: ${SERVER_ADDRESS:127.0.0.1}
   error:
     # 키스토어 검증 실패 사유처럼 사용자가 고칠 수 있는 메시지를 프론트로 전달한다.
     include-message: always
