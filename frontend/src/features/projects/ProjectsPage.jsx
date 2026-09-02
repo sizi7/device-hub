@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { projectApi, getServerErrorMessage } from '../../api/projectApi.js'
 import { getApiErrorMessage } from '../../api/deviceApi.js'
+import { hasKeystoreAccess } from '../../api/authApi.js'
 import styles from './ProjectsPage.module.css'
 
 const emptyProject = { name: '', code: '', description: '', manager: '', status: 'PLANNING' }
@@ -20,7 +21,7 @@ const statusLabel = {
   COMPLETED: '완료',
 }
 
-export default function ProjectsPage() {
+export default function ProjectsPage({ user }) {
   const [projects, setProjects] = useState([])
   const [selectedId, setSelectedId] = useState(null)
   const [form, setForm] = useState(null)
@@ -47,7 +48,7 @@ export default function ProjectsPage() {
     }
   }
 
-  if (selectedId) return <ProjectDetail projectId={selectedId} onBack={() => { setSelectedId(null); loadProjects() }} />
+  if (selectedId) return <ProjectDetail projectId={selectedId} user={user} onBack={() => { setSelectedId(null); loadProjects() }} />
 
   return (
     <section>
@@ -90,7 +91,10 @@ function ProjectForm({ form, setForm, onSubmit, onClose }) {
   </form></div>
 }
 
-function ProjectDetail({ projectId, onBack }) {
+function ProjectDetail({ projectId, user, onBack }) {
+  // 키스토어 파일과 비밀번호 조작은 ROLE_ADMIN, ROLE_RELEASE_MANAGER만 할 수 있다.
+  // 화면에서 숨기는 것은 편의를 위한 보조 수단이고 실제 차단은 백엔드 @PreAuthorize가 담당한다.
+  const canManageKeystore = hasKeystoreAccess(user)
   const [project, setProject] = useState(null)
   const [devices, setDevices] = useState([])
   const [networks, setNetworks] = useState([])
@@ -163,8 +167,8 @@ function ProjectDetail({ projectId, onBack }) {
       {tab === 'apks' && <><div className={styles.sectionAction}><h2>APK</h2></div><form className={styles.uploadForm} onSubmit={uploadApk}><input required type="file" accept=".apk" onChange={(event) => setApkForm({ ...apkForm, file: event.target.files[0] })} /><input required placeholder="버전 (1.5.2)" value={apkForm.version} onChange={(event) => setApkForm({ ...apkForm, version: event.target.value })} /><input required min="1" type="number" placeholder="versionCode" value={apkForm.versionCode} onChange={(event) => setApkForm({ ...apkForm, versionCode: event.target.value })} /><select value={apkForm.environmentType} onChange={(event) => setApkForm({ ...apkForm, environmentType: event.target.value })}>{['ISO','MFDS','DEVELOPMENT','BUSINESS'].map((value) => <option key={value}>{value}</option>)}</select><input placeholder="릴리즈 노트" value={apkForm.releaseNote} onChange={(event) => setApkForm({ ...apkForm, releaseNote: event.target.value })} /><button className={styles.primaryButton}>APK 업로드</button></form><DataTable headers={['버전','versionCode','환경','업로드일','파일명','작업']} rows={apks.map((apk) => [apk.version, apk.versionCode, apk.environmentType, formatDate(apk.uploadedAt), apk.fileName, <span className={styles.rowActions}><button onClick={() => projectApi.downloadApk(projectId, apk)}>다운로드</button><button onClick={async () => { await projectApi.removeApk(projectId, apk.id); load() }}>삭제</button></span>])} empty="업로드된 APK가 없습니다." /></>}
       {tab === 'keystores' && <>
         <div className={styles.sectionAction}><h2>서명 키스토어</h2></div>
-        <p className={styles.notice}>비밀번호는 서버에서 암호화해 저장합니다. 등록할 때 실제 키스토어를 열어 alias와 비밀번호를 검증하므로, 값이 틀리면 저장되지 않습니다.</p>
-        <form className={styles.keystoreForm} onSubmit={uploadKeystore}>
+        {canManageKeystore ? <p className={styles.notice}>비밀번호는 서버에서 암호화해 저장합니다. 등록할 때 실제 키스토어를 열어 alias와 비밀번호를 검증하므로, 값이 틀리면 저장되지 않습니다.</p> : <p className={styles.notice}>키스토어 파일과 비밀번호는 관리자 또는 배포 담당자만 다룰 수 있습니다. 목록은 확인할 수 있습니다.</p>}
+        {canManageKeystore && <form className={styles.keystoreForm} onSubmit={uploadKeystore}>
           <input required type="file" accept=".jks,.keystore,.p12,.pfx" onChange={(event) => setKeystoreForm({ ...keystoreForm, file: event.target.files[0] })} />
           <input required placeholder="이름 (Release Keystore)" value={keystoreForm.name} onChange={(event) => setKeystoreForm({ ...keystoreForm, name: event.target.value })} />
           <input required placeholder="키 alias" value={keystoreForm.keyAlias} onChange={(event) => setKeystoreForm({ ...keystoreForm, keyAlias: event.target.value })} />
@@ -172,8 +176,8 @@ function ProjectDetail({ projectId, onBack }) {
           <input type="password" autoComplete="new-password" placeholder="키 비밀번호 (비우면 스토어와 동일)" value={keystoreForm.keyPassword} onChange={(event) => setKeystoreForm({ ...keystoreForm, keyPassword: event.target.value })} />
           <input placeholder="설명" value={keystoreForm.description} onChange={(event) => setKeystoreForm({ ...keystoreForm, description: event.target.value })} />
           <button className={styles.primaryButton}>키스토어 등록</button>
-        </form>
-        <DataTable headers={['이름','파일명','형식','alias','키 비밀번호','등록일','작업']} rows={keystores.map((keystore) => [keystore.name, keystore.fileName, keystore.storeType, keystore.keyAlias, keystore.hasSeparateKeyPassword ? '별도 지정' : '스토어와 동일', formatDate(keystore.createdAt), <span className={styles.rowActions}><button onClick={() => revealPassword(keystore)}>비밀번호 보기</button><button onClick={() => setPasswordForm({ id: keystore.id, keyAlias: keystore.keyAlias, storePassword: '', keyPassword: '' })}>비밀번호 변경</button><button onClick={() => projectApi.downloadKeystore(projectId, keystore)}>다운로드</button><button onClick={() => deleteKeystore(keystore)}>삭제</button></span>])} empty="등록된 키스토어가 없습니다." />
+        </form>}
+        <DataTable headers={['이름','파일명','형식','alias','키 비밀번호','등록일','작업']} rows={keystores.map((keystore) => [keystore.name, keystore.fileName, keystore.storeType, keystore.keyAlias, keystore.hasSeparateKeyPassword ? '별도 지정' : '스토어와 동일', formatDate(keystore.createdAt), canManageKeystore ? <span className={styles.rowActions}><button onClick={() => revealPassword(keystore)}>비밀번호 보기</button><button onClick={() => setPasswordForm({ id: keystore.id, keyAlias: keystore.keyAlias, storePassword: '', keyPassword: '' })}>비밀번호 변경</button><button onClick={() => projectApi.downloadKeystore(projectId, keystore)}>다운로드</button><button onClick={() => deleteKeystore(keystore)}>삭제</button></span> : <span className={styles.rowActions}>권한 없음</span>])} empty="등록된 키스토어가 없습니다." />
         {passwordForm && <KeystorePasswordForm form={passwordForm} setForm={setPasswordForm} onSubmit={savePassword} />}
         {revealed && <KeystoreRevealDialog revealed={revealed} onClose={() => setRevealed(null)} />}
       </>}
@@ -191,7 +195,19 @@ function KeystorePasswordForm({ form, setForm, onSubmit }) {
   </form>
 }
 
+// 복호화한 비밀번호는 필요한 동안만 화면에 둔다. 닫으면 즉시 state에서 지우고, 방치되면 자동으로 닫는다.
+const REVEAL_TIMEOUT_SECONDS = 45
+
 function KeystoreRevealDialog({ revealed, onClose }) {
+  const [remaining, setRemaining] = useState(REVEAL_TIMEOUT_SECONDS)
+  useEffect(() => {
+    const timer = setInterval(() => setRemaining((value) => value - 1), 1000)
+    return () => clearInterval(timer)
+  }, [])
+  useEffect(() => {
+    if (remaining <= 0) onClose()
+  }, [remaining, onClose])
+
   return <div className={styles.modalLayer}><div className={styles.backdrop} onClick={onClose} /><div className={styles.modal}>
     <div className={styles.modalHeader}><h2>{revealed.name} 비밀번호</h2></div>
     <dl className={styles.secretList}>
@@ -199,6 +215,7 @@ function KeystoreRevealDialog({ revealed, onClose }) {
       <div><dt>스토어 비밀번호</dt><dd>{revealed.storePassword}</dd></div>
       <div><dt>키 비밀번호</dt><dd>{revealed.keyPassword}</dd></div>
     </dl>
+    <p className={styles.notice}>{remaining}초 후 자동으로 닫힙니다.</p>
     <div className={styles.modalActions}><button className={styles.primaryButton} type="button" onClick={onClose}>닫기</button></div>
   </div></div>
 }

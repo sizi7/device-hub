@@ -10,7 +10,13 @@ const navigation = [
   { label: 'Settings', icon: 'settings' },
 ]
 
-export default function AppShell({ activePage, onNavigate, children }) {
+const roleLabels = {
+  ROLE_ADMIN: '관리자',
+  ROLE_RELEASE_MANAGER: '배포 담당자',
+  ROLE_USER: '일반 사용자',
+}
+
+export default function AppShell({ activePage, onNavigate, user, onLogout, children }) {
   return (
     <div className={styles.shell}>
       <aside className={styles.sidebar}>
@@ -49,11 +55,12 @@ export default function AppShell({ activePage, onNavigate, children }) {
             <strong>{activePage}</strong>
           </div>
           <div className={styles.profile}>
-            <span className={styles.avatar}>AD</span>
+            <span className={styles.avatar}>{(user?.name || user?.username || '?').slice(0, 2)}</span>
             <div>
-              <strong>Administrator</strong>
-              <span>admin@devicehub.local</span>
+              <strong>{user?.name || user?.username}</strong>
+              <span>{roleLabels[user?.role] || user?.role}</span>
             </div>
+            <button className={styles.logout} type="button" onClick={onLogout}>로그아웃</button>
           </div>
         </header>
         <main className={styles.main}>{children}</main>

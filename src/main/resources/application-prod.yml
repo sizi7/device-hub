@@ -1,0 +1,7 @@
+# 운영 프로파일. SPRING_PROFILES_ACTIVE=prod 로 실행한다.
+# 개발용 Swagger 노출을 막고, JWT_SECRET 미설정 시에는 JwtTokenProvider가 기동을 실패시킨다.
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false

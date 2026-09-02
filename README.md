@@ -215,13 +215,14 @@ Remove-Item Env:PGPASSWORD
 - 독립 Project 관리 완료: Project CRUD, DeviceProjectAssignment 할당 이력, 프로젝트 네트워크, 프로젝트 APK 업로드·다운로드
 - 프로젝트 키스토어 완료: 키스토어 업로드·검증·다운로드·삭제와 AES-GCM 비밀번호 암호화 저장, 복호화 조회
 - React 관리자 웹 완료: Devices, Projects 메뉴에 실제 API 연동. Dashboard, Apps, Users, Settings는 화면 구조만 제공
+- 인증·인가 완료: Spring Security와 JWT 로그인, UserRole 3종, 키스토어 API 역할 제한, 관리자 웹 로그인 화면
 
 다음 단계(미진행):
 
-- 인증·권한과 감사 로그. 현재는 API에 접근할 수 있는 사람이면 누구나 키스토어 비밀번호를 조회할 수 있습니다.
-- 키스토어와 Project API의 통합 테스트. 현재 테스트는 `SecretEncryptorTest`뿐입니다.
+- 키스토어 암호화 마스터 키 교체. DEFAULT_SECRET_KEY를 없애려면 기존 암호문 재암호화 절차가 먼저 필요합니다.
+- 키스토어와 Project API의 통합 테스트. 현재 테스트는 `SecretEncryptorTest`, `JwtTokenProviderTest`, `KeystoreSecurityTest`, `HealthControllerTest`입니다.
 
-현재는 Spring Web, Spring Data JPA, Spring Validation, springdoc-openapi, Jackson Kotlin Module, PostgreSQL JDBC Driver를 사용합니다. Security, JWT, Docker는 아직 추가하지 않았습니다.
+현재는 Spring Web, Spring Data JPA, Spring Validation, Spring Security, springdoc-openapi, jjwt, Jackson Kotlin Module, PostgreSQL JDBC Driver를 사용합니다. Docker는 아직 추가하지 않았습니다.
 
 ## 기술 환경
 
@@ -234,6 +235,8 @@ Remove-Item Env:PGPASSWORD
 - Spring Web
 - Spring Data JPA
 - Spring Validation
+- Spring Security
+- jjwt 0.12.6 (JWT)
 - Jackson Kotlin Module
 - springdoc-openapi 2.8.9 (Swagger UI)
 - PostgreSQL 17.11
@@ -522,14 +525,14 @@ ProjectKeystore는 프로젝트별 APK 서명 키스토어와 비밀번호를 �
 
 아직 남은 위험과 별도 작업 항목입니다.
 
-- 인증과 권한이 없어 네트워크로 서버에 닿을 수 있으면 누구나 POST /reveal 로 비밀번호를 조회하고 GET /download 로 키스토어 파일을 받을 수 있습니다. 가장 시급한 과제입니다.
+- (해결) 인증과 권한이 없던 문제는 Spring Security와 JWT 도입으로 해결했습니다. 아래 "인증과 인가" 항목을 참고해 주세요.
 - KEYSTORE_SECRET_KEY를 설정하지 않으면 소스와 application.yml에 있는 기본 키를 사용합니다. 이 값은 저장소에 공개되어 있으므로 DB 덤프만 유출되어도 저장된 비밀번호를 복호화할 수 있습니다. 기본값을 제거하려면 기존 암호문을 새 키로 다시 암호화하는 절차가 먼저 필요합니다.
-- Swagger UI가 인증 없이 열려 있어 Try it out으로 비밀번호를 조회할 수 있습니다.
+- (해결) Swagger UI는 운영 프로파일에서 비활성화하고, 개발 환경에서도 Authorize로 token을 넣어야 보호된 API를 호출할 수 있습니다.
 - server.error.include-message가 always라서 예외 메시지가 그대로 전달됩니다. 지금 키스토어 관련 메시지에는 민감정보가 없지만, 앞으로 RestControllerAdvice로 노출 메시지를 통제한 뒤 회수하는 편이 안전합니다.
 - delete는 파일을 먼저 지우고 DB 삭제는 커밋 시점에 반영됩니다. 커밋이 실패하면 파일만 사라집니다. upload도 커밋 단계에서 실패하면 storage에 파일이 남습니다.
-- 비밀번호 조회에 대한 감사 로그가 없습니다.
+- (해결) 키스토어 조회·다운로드·삭제 등에 감사 로그를 남깁니다.
 
-현재 상태로는 개인 로컬 개발 환경에서만 사용하고, 사내 내부망이나 운영 서버에는 인증과 마스터 키 정비를 마친 뒤 배포해야 합니다. 그때까지 실수로 다른 기기에서 접근하는 일이 없도록 server.address 기본값을 127.0.0.1로 두었습니다. 다른 기기에서 접속해야 하면 SERVER_ADDRESS=0.0.0.0 으로 실행합니다.
+인증과 인가를 도입한 뒤에도 마스터 키 문제가 남아 있으므로 운영 서버 배포 전에는 마스터 키 정비가 필요합니다. 실수로 다른 기기에서 접근하는 일이 없도록 server.address 기본값은 127.0.0.1로 둡니다. 다른 기기에서 접속해야 하면 SERVER_ADDRESS=0.0.0.0 으로 실행합니다.
 
 ### Project API
 
@@ -568,3 +571,151 @@ ProjectKeystore는 프로젝트별 APK 서명 키스토어와 비밀번호를 �
 - @Value로 설정값을 주입하는 @Component를 만들면 암호화 같은 공통 기능을 서비스에서 재사용할 수 있습니다.
 - JDK 9부터 JKS와 PKCS12 KeyStore 구현이 서로의 형식도 읽어주기 때문에, KeyStore.load 성공 여부로는 실제 파일 형식을 구분할 수 없고 파일 magic number를 봐야 합니다.
 - 파일을 먼저 저장한 뒤 검증에 실패하면 try-catch에서 저장한 파일을 지워야 storage에 쓰레기 파일이 남지 않습니다.
+
+## 인증과 인가 (Spring Security + JWT)
+
+보안 점검에서 확인한 접근 통제 문제를 해결하기 위해 Spring Security와 JWT 기반 로그인을 도입했습니다. 기존 API path와 함수 이름은 그대로 두고 권한 검사만 덧붙였습니다.
+
+### 구조
+
+- `spring-boot-starter-security`와 `io.jsonwebtoken:jjwt` 0.12.6을 사용합니다.
+- `SecurityConfig`가 `SecurityFilterChain`을 구성합니다. 세션은 `STATELESS`, form login과 http basic은 끕니다.
+- 권한 정책을 두 층으로 나눕니다. `SecurityConfig`의 URL 규칙은 "인증이 필요한가"만 정하고, 역할별 제한은 컨트롤러 메서드의 `@PreAuthorize`가 담당합니다. 키스토어는 같은 경로에 HTTP 메서드만 다른 API가 여러 개라서 URL 패턴으로 역할을 나누면 규칙이 어긋나기 쉽고, 권한 규칙을 엔드포인트 옆에 두면 한 곳만 보면 되기 때문입니다.
+- `permitAll`을 선언한 곳 외에는 모두 인증이 필요한 deny-by-default 방식입니다.
+
+인증 없이 접근할 수 있는 경로는 다음뿐입니다.
+
+- `GET /api/health`
+- `POST /api/auth/login`
+- `/error` (컨트롤러 예외가 ERROR 디스패치로 한 번 더 지나가는 경로입니다. 막으면 로그인 실패 401이 엉뚱한 메시지로 덮입니다.)
+- 개발 환경의 Swagger 경로 (`/swagger-ui/**`, `/v3/api-docs/**`)
+
+### UserRole
+
+`app_user` 테이블에 사용자를 저장하며 역할은 세 가지입니다.
+
+- `ROLE_ADMIN`: 전체 관리. 키스토어 모든 작업과 사용자 관리
+- `ROLE_RELEASE_MANAGER`: 배포 관련 관리. 키스토어 등록·조회·다운로드·삭제
+- `ROLE_USER`: 일반 조회와 Device·Project 관리. 키스토어 secret과 파일에는 접근 불가
+
+Spring Security의 `hasRole`은 `ROLE_` 접두사를 자동으로 붙여서 접두사가 두 번 붙는 실수가 생기기 쉽습니다. 그래서 enum 이름 자체에 `ROLE_` 접두사를 포함해 DB에 그대로 저장하고, 권한 검사는 접두사를 붙이지 않는 `hasAnyAuthority`로만 통일했습니다.
+
+### 로그인 API
+
+```
+POST /api/auth/login
+{ "username": "...", "password": "..." }
+```
+
+응답에는 `accessToken`, `tokenType`, `expiresIn`, `user`(id, username, name, role)가 담깁니다. 이후 요청에는 다음 헤더를 붙입니다.
+
+```
+Authorization: Bearer {accessToken}
+```
+
+`GET /api/auth/me`로 현재 token에 연결된 사용자를 확인할 수 있습니다.
+
+- 잘못된 username 또는 password: `401`. 어느 쪽이 틀렸는지 구분해서 알려주지 않습니다. 구분하면 어떤 계정이 존재하는지 알려주는 셈이 됩니다.
+- 비활성화된 계정: `403`
+
+### 사용자 비밀번호
+
+로그인 비밀번호는 `BCryptPasswordEncoder`로 해시해서 저장하며 평문은 어디에도 남기지 않습니다. 응답과 로그에도 포함하지 않습니다. 키스토어 비밀번호는 APK 서명에 원문이 필요해서 `SecretEncryptor`로 복호화 가능하게 암호화하지만, 로그인 비밀번호는 원문이 필요하지 않으므로 단방향 해시를 씁니다. 두 용도를 섞어 쓰지 않습니다.
+
+### JWT_SECRET
+
+JWT 서명 키는 `JWT_SECRET` 환경변수로 주입합니다. 키스토어 마스터 키에서 겪은 문제를 반복하지 않기 위해 **소스에 기본값을 두지 않습니다.**
+
+- `JWT_SECRET`이 있으면 그 값을 씁니다. 32byte 미만이면 기동을 실패시킵니다.
+- `prod` 프로파일에서 `JWT_SECRET`이 없으면 기동을 실패시킵니다.
+- 그 외(로컬 개발)에서 없으면 기동할 때마다 무작위 키를 새로 만들고 WARN 로그를 남깁니다. 하드코딩 값이 저장소에 남지 않는 대신 서버를 재시작하면 기존 token이 모두 무효가 됩니다.
+
+유효 시간은 `JWT_EXPIRATION_SECONDS`로 조정하며 기본값은 3600초입니다.
+
+### 초기 관리자 생성
+
+`admin/admin123` 같은 고정 계정을 코드에 넣지 않습니다. 아래 두 환경변수가 모두 설정되고 아직 `ROLE_ADMIN` 사용자가 없을 때만 최초 관리자를 만듭니다. 이미 관리자가 있으면 아무것도 하지 않고, 비밀번호는 로그로 남기지 않습니다.
+
+```powershell
+$env:DEVICEHUB_ADMIN_USERNAME = "원하는_아이디"
+$env:DEVICEHUB_ADMIN_PASSWORD = "8자 이상 비밀번호"
+$env:JWT_SECRET = "32byte 이상 임의 문자열"
+.\gradlew.bat bootRun
+```
+
+이후 사용자는 `ROLE_ADMIN`이 `POST /api/users`로 추가합니다. `GET /api/users`도 `ROLE_ADMIN` 전용이며 두 응답 모두 비밀번호를 포함하지 않습니다. 사용자 관리 화면은 이번 단계에서 만들지 않았고 API까지만 제공합니다.
+
+### 키스토어 역할 제한
+
+`ProjectKeystoreController`의 각 메서드에 `@PreAuthorize`를 붙였습니다. 기존 API path는 변경하지 않았습니다.
+
+| API | 필요 권한 |
+| --- | --- |
+| `GET /api/projects/{projectId}/keystores` | 인증된 사용자 |
+| `GET /api/projects/{projectId}/keystores/{keystoreId}` | 인증된 사용자 |
+| `POST /api/projects/{projectId}/keystores` | ADMIN, RELEASE_MANAGER |
+| `POST /api/projects/{projectId}/keystores/{keystoreId}/reveal` | ADMIN, RELEASE_MANAGER |
+| `PUT /api/projects/{projectId}/keystores/{keystoreId}` | ADMIN, RELEASE_MANAGER |
+| `PUT /api/projects/{projectId}/keystores/{keystoreId}/password` | ADMIN, RELEASE_MANAGER |
+| `GET /api/projects/{projectId}/keystores/{keystoreId}/download` | ADMIN, RELEASE_MANAGER |
+| `DELETE /api/projects/{projectId}/keystores/{keystoreId}` | ADMIN, RELEASE_MANAGER |
+
+목록과 상세는 비밀번호와 서버 내부 경로를 포함하지 않으므로 인증만 요구합니다. `ROLE_USER`가 secret이나 실제 키 파일에 닿는 API를 호출하면 403입니다.
+
+### 401과 403
+
+`SecurityErrorResponder`가 HTML 오류 페이지 대신 JSON을 반환합니다.
+
+```json
+{ "status": 401, "error": "UNAUTHORIZED", "message": "Authentication is required." }
+{ "status": 403, "error": "FORBIDDEN", "message": "You do not have permission to access this resource." }
+```
+
+- `401`: 인증이 없거나 token이 유효하지 않음
+- `403`: 로그인은 되어 있지만 권한이 없음
+
+응답에 stack trace나 내부 경로를 담지 않습니다.
+
+### 감사 로그
+
+`SecurityAuditLogger`가 `com.devicehub.audit` 로거로 키스토어 민감 작업을 기록합니다. 남기는 값은 action, userId, username, role, projectId, keystoreId, success입니다. 비밀번호, JWT, 마스터 키, 키스토어 파일 내용은 인자로 받지 않습니다.
+
+기록 대상은 `KEYSTORE_UPLOAD`, `KEYSTORE_REVEAL`, `KEYSTORE_DOWNLOAD`, `KEYSTORE_PASSWORD_UPDATE`, `KEYSTORE_DELETE`이며 실패한 시도도 남깁니다. 별도 Audit Entity는 만들지 않고 애플리케이션 로그로 시작합니다.
+
+### CSRF와 CORS
+
+- CSRF는 끕니다. Bearer token을 `Authorization` 헤더로 전달하는 stateless API여서 브라우저가 자동으로 실어 보내는 쿠키가 없고, CSRF 공격 경로 자체가 성립하지 않습니다. 나중에 HttpOnly 쿠키 인증으로 바꾼다면 CSRF 보호를 다시 켜야 합니다.
+- CORS는 `http://localhost:5173`과 `http://127.0.0.1:5173`만 허용합니다. `allowedOrigins="*"`는 쓰지 않고 `allowCredentials`는 false입니다. 관리자 웹은 Vite proxy를 거치므로 실제로는 같은 origin이지만, 개발 중 직접 호출할 때를 위해 최소 범위로 열어 둡니다.
+
+### Swagger 인증
+
+Swagger UI 오른쪽 위 `Authorize` 버튼에 로그인 응답의 `accessToken` 값을 입력하면 이후 `Try it out` 요청에 `Authorization: Bearer {token}` 헤더가 자동으로 붙습니다. `Bearer` 접두사는 직접 입력하지 않습니다.
+
+`GET /api/health`와 `POST /api/auth/login`은 `@SecurityRequirements`로 공개 API임을 표시했습니다.
+
+개발 환경과 운영 환경의 Swagger 노출이 다릅니다.
+
+- 개발: Swagger UI와 api-docs 사용 가능
+- 운영(`SPRING_PROFILES_ACTIVE=prod`): `application-prod.yml`이 `springdoc.api-docs.enabled`와 `springdoc.swagger-ui.enabled`를 false로 두어 두 경로 모두 404
+
+### 관리자 웹 로그인
+
+로그인 화면(`features/auth/LoginPage.jsx`)을 추가했습니다. 로그인하지 않으면 다른 화면으로 들어갈 수 없습니다. 헤더에는 사용자 이름과 역할이 표시되고 로그아웃 버튼이 있습니다.
+
+token은 `sessionStorage`에 보관합니다. 메모리에만 두면 새로고침할 때마다 로그아웃되고, `localStorage`에 두면 탭을 닫아도 남습니다. `sessionStorage`는 탭을 닫으면 사라지므로 이 규모에서 다루기 가장 단순한 절충입니다. 다만 XSS가 발생하면 스크립트가 읽을 수 있다는 한계가 있어, 더 강한 보호가 필요하면 HttpOnly 쿠키와 CSRF 보호로 옮겨야 합니다.
+
+`authApi.js`의 `attachAuthInterceptors`가 기존 `deviceApi`와 `projectApi`의 axios 인스턴스에 공통으로 붙습니다. API 호출마다 token 코드를 반복하지 않습니다.
+
+- `401`: 인증 상태를 지우고 로그인 화면으로 돌아갑니다.
+- `403`: 로그인 화면으로 보내지 않고 권한 부족 메시지만 보여줍니다.
+
+키스토어 탭에서는 `ROLE_USER`에게 등록 폼과 비밀번호 보기·변경·다운로드·삭제 버튼을 숨깁니다. 화면에서 숨기는 것은 편의를 위한 보조 수단이고 실제 차단은 백엔드 `@PreAuthorize`가 담당합니다. 비밀번호 보기 Dialog는 닫으면 즉시 state에서 지우고, 방치되면 45초 후 자동으로 닫힙니다.
+
+### 이번 단계에서 하지 않은 것
+
+키 교체는 기존 암호문을 복호화할 수 없게 만들 수 있어 migration 절차와 함께 별도 단계로 분리했습니다.
+
+- 키스토어 `DEFAULT_SECRET_KEY` 제거
+- 기존 키스토어 비밀번호 재암호화와 마스터 키 rotation
+- APK 실제 서명 기능
+- Refresh Token, OAuth, SSO, 조직·부서 기반 RBAC

@@ -1,7 +1,11 @@
 import axios from 'axios'
 import { getApiErrorMessage } from './deviceApi.js'
+import { attachAuthInterceptors } from './authApi.js'
 
 const api = axios.create({ baseURL: '/api', timeout: 30000 })
+
+// 모든 요청에 Authorization 헤더를 붙이고 401이면 인증 상태를 초기화한다.
+attachAuthInterceptors(api)
 
 // 키스토어 검증처럼 백엔드가 구체적인 실패 사유를 내려주는 경우 그 메시지를 그대로 보여준다.
 export function getServerErrorMessage(error) {

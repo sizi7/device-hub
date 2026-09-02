@@ -34,3 +34,10 @@ devicehub:
   security:
     # 키스토어 비밀번호 암호화용 마스터 키. 운영 환경에서는 반드시 KEYSTORE_SECRET_KEY를 설정한다.
     secret-key: ${KEYSTORE_SECRET_KEY:devicehub-local-dev-secret-key}
+    # JWT 서명 키. 소스에 기본값을 두지 않는다. 미설정 시 기동할 때마다 무작위 키를 생성하고 prod 프로파일에서는 기동을 실패시킨다.
+    jwt-secret: ${JWT_SECRET:}
+    jwt-expiration-seconds: ${JWT_EXPIRATION_SECONDS:3600}
+    # 최초 관리자 계정. 두 값이 모두 설정되고 아직 ROLE_ADMIN이 없을 때만 생성한다.
+    admin-username: ${DEVICEHUB_ADMIN_USERNAME:}
+    admin-password: ${DEVICEHUB_ADMIN_PASSWORD:}
+    admin-name: ${DEVICEHUB_ADMIN_NAME:관리자}
