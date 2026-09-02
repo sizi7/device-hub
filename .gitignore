@@ -6,3 +6,9 @@ out/
 frontend/node_modules/
 frontend/dist/
 storage/
+
+# 서명 키스토어는 storage/ 밖에 두더라도 커밋되지 않도록 확장자로도 차단한다.
+*.jks
+*.keystore
+*.p12
+*.pfx

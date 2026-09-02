@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
 import org.springframework.core.io.Resource
+import org.springframework.http.CacheControl
 import org.springframework.http.ContentDisposition
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
@@ -85,7 +86,10 @@ class ProjectKeystoreController(private val projectKeystoreService: ProjectKeyst
         ],
     )
     fun reveal(@PathVariable projectId: Long, @PathVariable keystoreId: Long) =
-        ResponseEntity.ok(projectKeystoreService.reveal(projectId, keystoreId))
+        ResponseEntity.ok()
+            // 복호화한 비밀번호가 브라우저나 중간 캐시에 남지 않도록 한다.
+            .cacheControl(CacheControl.noStore())
+            .body(projectKeystoreService.reveal(projectId, keystoreId))
 
     @PutMapping("/{keystoreId}")
     @Operation(summary = "키스토어 수정", description = "이름과 설명을 수정합니다. 비밀번호는 별도 API로 변경합니다.")
@@ -121,6 +125,7 @@ class ProjectKeystoreController(private val projectKeystoreService: ProjectKeyst
             .filename(download.fileName, StandardCharsets.UTF_8)
             .build()
         return ResponseEntity.ok()
+            .cacheControl(CacheControl.noStore())
             .header(HttpHeaders.CONTENT_DISPOSITION, disposition.toString())
             .contentType(MediaType.APPLICATION_OCTET_STREAM)
             .body(download.resource)
